@@ -1,7 +1,9 @@
 // Load the gallery in headless Chrome and check every hall and a focus view:
 // no errors, no failed faces, and the faces on screen keep their frame rate.
 //
-//   node tools/smoke.mjs [--url gallery-url] [--shots dir] [--wait seconds] [--halls 1602,oled,tft,led]
+//   node tools/smoke.mjs [--url gallery-url] [--shots dir] [--wait seconds] [--halls 1602,oled,tft,led] [--phone]
+//
+// --phone emulates a 390 x 844 phone screen at 3x, with touch.
 //
 // Without --url it starts tools/serve.mjs on a free port; with one it tests
 // that page instead (a static build, or the published site). Set
@@ -18,6 +20,7 @@ const HERE = fileURLToPath(new URL('..', import.meta.url));
 const arg = (name, dflt) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : dflt; };
 const shots = arg('shots', null);
 const URL_ARG = arg('url', null);
+const PHONE = process.argv.includes('--phone');
 const WAIT = Number(arg('wait', 5)) * 1000;
 const HALLS = arg('halls', '1602,oled,tft,led').split(',');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -81,6 +84,10 @@ function report(label, stats, fps) {
 let slowTotal = 0;
 try {
   await send('Runtime.enable'); await send('Page.enable');
+  if (PHONE) {
+    await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 3, mobile: true });
+    await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+  }
   await send('Page.navigate', { url: base });
   await sleep(WAIT + 3000);   // first load builds the manifest if there is no cache yet
   for (let i = 0; i < 60 && !(await evaluate('document.querySelectorAll(".case").length')); i++) await sleep(1000);

@@ -217,8 +217,11 @@ function mmOf(hall, face, crop, layout) {
   if (hall.id === 'led') return hall.layouts[layout ?? face.layout].mm;
   return hall.modules[face.module].crops[crop];
 }
-/** CSS px per mm that fits `mm` into `box` without going over `max`. */
-const fit = (mm, box, max) => Math.min(max, box.w / mm.w, box.h / mm.h);
+/** CSS px per mm that fits `mm` into `box` without going over `max` (and never under 0.5). */
+const fit = (mm, box, max) => Math.max(0.5, Math.min(max, box.w / mm.w, box.h / mm.h));
+
+/** The stacked, scrolling focus layout of gallery.css (narrow screens). */
+const STACKED = matchMedia('(max-width: 900px)');
 
 // ---- the halls ---------------------------------------------------------------------------
 const el = (tag, props = {}, ...kids) => {
@@ -328,8 +331,10 @@ function controlsFor(hall, face) {
       ['tear', 'Show tearing', 'check', false],
     ];
   }
+  // On a narrow screen the TFT's board is twice the width of its glass, so
+  // showing the whole module would draw the face smaller than in the hall.
   if (hall.id === 'tft') return [
-    ['crop', 'Show', [['body', 'Whole module'], ['glass', 'Glass'], ['view', 'Pixels only']], 'body'],
+    ['crop', 'Show', [['body', 'Whole module'], ['glass', 'Glass'], ['view', 'Pixels only']], STACKED.matches ? 'glass' : 'body'],
     ['style', 'Rendering', STYLE, 'photo'],
     ['room', 'Room', [['dark', 'Dark'], ['lit', 'Lit']], 'dark'],
     ['night', 'Night dimming', NIGHT, 'auto'],
@@ -395,8 +400,14 @@ function focusOpts() {
   const v = VIEW[hall.id];
   const crop = state.crop ?? v.focusCrop;
   const mm = mmOf(hall, face, crop, state.layout);
+  // Side by side, the stage is the space left between the bar and the label.
+  // Stacked, the stage grows to fit the display, so fit the width and let the
+  // display take up to 60% of the screen's height, leaving the name in view.
   const stage = $('focus-stage').getBoundingClientRect();
-  const css = state.actual ? CSS_PX_PER_MM : fit(mm, { w: stage.width - 48, h: stage.height - 48 }, v.focusMax);
+  const box = STACKED.matches
+    ? { w: stage.width, h: Math.max(180, innerHeight * 0.6) }
+    : { w: stage.width - 48, h: stage.height - 48 };
+  const css = state.actual ? CSS_PX_PER_MM : fit(mm, box, v.focusMax);
   canvas.style.width = `${(mm.w * css).toFixed(1)}px`;
   canvas.style.aspectRatio = `${mm.w} / ${mm.h}`;
   const opts = { ...state, scale: css * DPR, gap: state.gap !== undefined ? Number(state.gap) : undefined };

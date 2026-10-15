@@ -193,7 +193,7 @@ main { padding: 0 32px 120px; }
   min-height: 0; overflow: auto;
 }
 .focus-stage .lamp { inset: 0; opacity: 1; background: radial-gradient(ellipse 45% 55% at 50% 45%, rgb(var(--lamp) / .09), transparent 100%); }
-.focus-stage canvas { position: relative; display: block; filter: drop-shadow(0 18px 24px rgb(0 0 0 / .5)); }
+.focus-stage canvas { position: relative; display: block; flex: none; filter: drop-shadow(0 18px 24px rgb(0 0 0 / .5)); }
 .focus-info {
   display: grid; grid-template-columns: minmax(0, 62ch) minmax(260px, 340px);
   justify-content: space-between; gap: 20px 48px;
@@ -218,12 +218,33 @@ main { padding: 0 32px 120px; }
   .day { grid-column: 1 / -1; }
   main { padding: 0 16px 80px; }
   .intro h1 { font-size: 36px; }
-  .focus { padding: 10px 16px 18px; }
+  /* Too narrow to fit the display, its label and its options on one screen:
+     the focus view scrolls, the display first at the full width (gallery.js
+     focusOpts sizes it), then the label and options under it. */
+  .focus { display: block; overflow-y: auto; overscroll-behavior: contain; padding: 10px 16px 32px; }
+  .focus-stage { padding: 22px 0 26px; overflow-x: auto; overflow-y: hidden; justify-content: safe center; }
   .focus-info { grid-template-columns: 1fr; }
+  body.is-focused .halls-nav { display: none; }   /* "Back to the hall" does its job */
 }
 @media (max-width: 560px) {
-  .clock-time { font-size: 30px; }
-  .halls-nav { font-size: 13.5px; }
+  /* the masthead stays on screen: keep it to a few short rows */
+  .masthead { padding: 6px 12px 6px; }
+  .wordmark { font-size: 15px; }
+  .halls-nav { font-size: 13px; gap: 2px 14px; }
+  .clock { gap: 4px 12px; margin-top: 4px; }
+  .clock-time { font-size: 26px; min-width: 0; }
+  .clock-controls { gap: 5px; }
+  .clock-controls button, .clock-controls select { font-size: 13px; padding: 4px 8px; }
+  .speed { font-size: 13px; gap: 5px; }
+  .day input { height: 18px; }
+  .day-scale { font-size: 10.5px; }
+  main { padding: 0 12px 64px; }
+  .focus { padding: 8px 12px 28px; }
+  .focus-bar button { font-size: 13px; padding: 4px 9px; }
+  .focus-text h2 { font-size: 27px; }
+  .focus-blurb { font-size: 16.5px; }
+  .opt { grid-template-columns: 8em 1fr; }
+  .opt.opt-check { grid-template-columns: auto 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
   .lamp { transition: none; }

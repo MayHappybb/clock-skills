@@ -1,0 +1,122 @@
+Design ONE clock face for shaped WS2812 RGB LED boards with the ws2812-clock
+skill (.claude/skills/ws2812-clock): layout 'strip-x3', three strips stacked: 32x24 (768),
+96 x 73 mm, 768 LEDs, supply 4 A.
+
+First read SKILL.md, references/panels.md and references/hardware.md.
+Then read sim/designs/hive.js and neon.js for the API. They show the
+mechanics; they are not the creative bar.
+Then run `node tools/info.mjs --layout strip-x3` and
+`node tools/render.mjs chain --layout strip-x3 --room lit --out out/bowling-boards.png`
+to see the boards.
+
+Edit only sim/designs/bowling.js. It is already registered as a placeholder;
+give it a real name and blurb, and keep layouts: ['strip-x3'] first. Don't
+touch other designs, index.js, sim/js/ or tools/; put any helpers in your own
+file. If you find a bug in the shared tools, report it, don't fix it.
+
+Starting idea (push past it, or replace it if you find something stronger):
+Bowling alley. Three stacked strips are three bowling lanes seen from above, glossy maple wood with arrows and lane oil glints, the seams the gutters. At the far end of the lanes the pins stand, and their racks are arranged into the time (numerals made of pins; the white pins with red necks). Balls roll down with spin and curve. Minute turn: a ball strikes the changed digit's pins, they scatter physically (rotating, sliding), the pinsetter sweeps them away and lowers a new rack in the new digit's shape. Hour: a strike on all lanes at once, confetti on the scoreboard. Physical and satisfying.
+
+GOAL: a stranger looks at it and says "wait, that's a clock?" Creativity comes
+first. A competent, pretty, conventional face is a fail.
+
+REQUIREMENTS
+1. Concept: the time is expressed by the theme's own mechanism. Test: if
+   swapping your digits for a plain bitmap font still works, the digits are
+   not part of the idea yet.
+2. Letterforms: if the time is shown as digits (it doesn't have to be), draw
+   your own, made of or carried by the theme's material, and designed for
+   THIS lattice. Kit fonts (STROKE, COMB, SQ3X5) are not
+   allowed for the time, not even as a skeleton with texture painted on.
+   Design all ten digits as a set.
+3. Use the shape. The outline, the lattice (triangular / square / rhombic / bipolar arcs),
+   the hexagon's rings and the seams between boards are material for the
+   idea; a face that would look the same on a rectangle has missed the
+   point. Never the default of four equal digits in a row with decoration
+   around them.
+4. Always alive: smooth 60 fps motion that belongs to the theme, every
+   second, not only at the turn. Positions glide between LEDs (kit.splat,
+   distance fields), they don't hop.
+5. Minute turn: the old digit physically becomes the new one through the
+   theme's process, 0.8-3 s, eased, no pops or cuts. The time is never
+   wrong mid-transition (empty or half-drawn is fine; a different number is
+   not). The hour gets a bigger, distinct show, and the time stays readable
+   through it (blank for more than ~1 s is a fail).
+6. Colour: design a palette for the theme, not rainbow-everything. Light
+   adds. Black is free and makes light glow. Below ~8/255 colours step and
+   shift hue, so keep dark tones deliberate; use dither: true for slow dim
+   fades.
+7. Power: check.mjs must PASS the 4 A supply all day. Budget the
+   light: dark grounds, lit strokes, saturated colours.
+8. Look: choose bare, smoke or opal (+ gap) deliberately for the idea, and
+   say why. The opal gap is physical millimetres (see SKILL.md): about 1-2 mm
+   keeps soft dots, about 0.75 x pitch merges them into even light.
+9. Real size: the LEDs are 3 mm apart and the whole face is 96 x 73
+   mm, seen from 1-2 m. Judge legibility at --scale 3 (about true size on a
+   monitor) as well as zoomed.
+10. Technical:
+    - frame() is a pure function of time: closed form, or deterministic
+      caches keyed by the minute.
+    - If you must simulate, warmup <= 2 s.
+    - Dim with ctx.night.
+    - `node tools/check.mjs --design bowling` has no FAIL.
+    - frame() mean under ~1 ms in Node.
+    - No hidden extra features.
+
+PROCESS
+1. Pitch three very different concepts for this layout. Pick the strongest,
+   judging harshly.
+2. Digits first. Render every digit in every slot:
+   node tools/render.mjs bowling --clocks 00:00:30,11:11:30,22:22:30,03:33:30,04:44:30,05:55:30,16:06:30,17:17:30,18:18:30,19:39:30 --out out/bowling-digits.png
+   Iterate until each digit is beautiful and unmistakable.
+3. Build, then render these, and look at every image:
+   - out/bowling.png
+   - out/bowling-turn.png: --clock 10:09:58 --frames 9 --duration 6 --sheet
+   - out/bowling-hour.png: the same at --clock 10:59:58, and once at 23:59:58
+   - out/bowling.gif: --clock 10:09:57 --frames 250 --duration 10 --gif --scale 5
+   - out/bowling-hour.gif
+4. Critique it in the owner's voice. Is the font, layout, motion or
+   transition ordinary? Is there a wow moment? Fix the weakest part and
+   re-render. At least two rounds.
+5. Report:
+   - the idea in one sentence
+   - the look chosen and why
+   - render paths
+   - the check.mjs result
+   - the honest weakest point
+
+LESSONS FROM ROUND 1 (16 faces; the owner called them amazing; see their
+files in sim/designs/ if useful, but don't copy their concepts)
+- The most common weakness: at rest the face still reads as four plain
+  digits with a themed background, and the wow lives only in the turns. Make
+  the time at rest belong to the theme too: carried by objects, characters,
+  light or material, or by a non-digit system (dials, counts, positions)
+  that still reads clearly.
+- Characters smaller than about 5 LEDs read only while they move. Make the
+  heroes big enough, or let motion carry them.
+- Thin one-LED digits get lost on busy grounds, so leave a dark margin.
+
+THE OWNER'S TASTE (from ~90 faces they rated on the sibling OLED and 1602 skills)
+- Loved:
+  - scope, radar, sand: extraordinarily smooth, physical, fancy transitions
+  - cube: 3D, constant dynamic
+  - numberfolk: digits as cute characters
+  - nixie
+  - urwerk and ressence: "not digits anymore"
+  - playful character and game designs (their avatar is a rainbow frog in
+    round glasses)
+- Disliked:
+  - ordinary or kit fonts
+  - four big digits with decoration
+  - static between turns
+  - abrupt transitions
+  - elements that don't belong to one world
+  - "good parts but no wow moment"
+- They accept reduced legibility for real artistry, but the time must still
+  be readable.
+
+Work alone: don't spawn subagents. About 14 other agents are building other
+faces in parallel on this machine, so:
+- only ever write sim/designs/bowling.js and out/bowling*
+- render sequentially
+- don't run tools/livecheck.mjs or tools/serve.mjs

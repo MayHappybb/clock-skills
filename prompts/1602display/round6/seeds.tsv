@@ -1,0 +1,10 @@
+chladni	096-128x64	Cymatics: sand on a vibrating Chladni plate. As the driving frequency sweeps, grains dance and settle along nodal lines; at the current minute's resonance they settle into the time. The minute turn is a sweep through several Chladni figures that condenses into the new digits.
+automaton	096-128x64	A playful clockwork automaton: a characterful mechanical figure (cams, gears, rails, springs all visible) whose performance physically produces the time, e.g. a writing boy penning flourished numerals, or a puppet troupe assembling them.
+harmonograph	096-128x64	A harmonograph: damped pendulums drive a pen that traces looping Lissajous figures, and the decaying curves resolve into the time.
+pinart	096-128x64	A pin-art toy (pinscreen): thousands of pins in perspective, pushed from behind by an unseen hand so their raised heads form the time.
+popup	096-128x64	A pop-up book: paper engineering that folds up out of the page into the time as the pages turn.
+loom	096-128x64	A weaving loom: a shuttle flies back and forth and the warp and weft weave the time into cloth.
+beach	091-128x32	A long beach seen from above: waves wash in, write the time in wet sand and foam, and wash it away again. (128x32 strip: design for the panorama shape; the 0.91" board is I2C-only, so bus i2c400 at 50 fps; you may draw into hidden RAM with ramPages: 8 and use hardware scroll.)
+ants	096-128x64	An ant colony: ants carry crumbs and lay pheromone trails, and the colony builds and rebuilds the time.
+marbling	096-128x64	Paper marbling (suminagashi / ebru): ink drops float on water and are combed and swirled into the time.
+zoetrope	096-128x64	A zoetrope: a spinning slotted drum; through the slits a looping animation reads as the time.

@@ -1,0 +1,20 @@
+automaton-haiku45 exit 0
+chladni-haiku45 exit 0
+automaton-sonnet5 exit 1
+chladni-sonnet5 exit 1
+chladni-opus5 exit 1
+automaton-opus5 exit 1
+loom-ds exit 0
+chladni-ds exit 0
+harmonograph-ds exit 0
+ants-ds exit 0
+pinart-ds exit 0
+beach-ds exit 0
+zoetrope-ds exit 0
+automaton-ds exit 0
+popup-ds exit 0
+marbling-ds exit 0
+chladni-sonnet5 resume exit 0
+automaton-sonnet5 resume exit 0
+chladni-opus5 resume exit 0
+automaton-opus5 resume exit 0

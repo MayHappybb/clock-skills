@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TFT clock simulator</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #1b1c20; color: #d8dade; font: 14px/1.45 system-ui, sans-serif; }
+  main { padding: 18px 22px; }
+  h1 { font-size: 16px; font-weight: 600; margin: 0 0 12px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin-bottom: 14px; }
+  label { display: inline-flex; gap: 6px; align-items: center; }
+  select, button, input { font: inherit; background: #2a2c32; color: inherit; border: 1px solid #44474f; border-radius: 4px; padding: 3px 8px; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid #7fb2ff; outline-offset: 1px; }
+  #stage { display: inline-block; padding: 18px; background: #0d0d0f; border-radius: 6px; }
+  canvas { display: block; image-rendering: pixelated; }
+  #status { margin-top: 10px; font: 12px/1.5 ui-monospace, Menlo, monospace; white-space: pre-wrap; color: #a9adb6; }
+  #blurb { color: #a9adb6; margin: -6px 0 12px; }
+  body.capture main > :not(#stage) { display: none; }
+  body.capture main, body.capture #stage { padding: 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>TFT clock simulator</h1>
+  <div class="bar">
+    <label>Design <select id="design"></select></label>
+    <label>Style <select id="style"><option value="photo">photo</option><option value="clean">clean</option></select></label>
+    <label>Size <select id="px"><option value="true">true size</option><option>3</option><option>4</option><option selected>6</option><option>8</option><option>10</option></select></label>
+    <label>Crop <select id="crop"><option>view</option><option>glass</option><option>body</option></select></label>
+    <label>Room <select id="room"><option>dark</option><option>lit</option></select></label>
+    <label>Night <select id="night"><option>auto</option><option>off</option><option>on</option></select></label>
+    <label><input type="checkbox" id="tear"> tearing</label>
+  </div>
+  <div class="bar">
+    <button id="now">Now</button>
+    <button id="minute">Next minute turn</button>
+    <button id="hour">Next hour turn</button>
+    <button id="pause" aria-pressed="false">Pause</button>
+    <label>Speed <select id="speed"><option>0.1</option><option>0.25</option><option selected>1</option><option>4</option><option>60</option></select></label>
+  </div>
+  <p id="blurb"></p>
+  <div id="stage"><canvas id="glass" aria-label="Simulated display"></canvas></div>
+  <div id="status" role="status" aria-live="off"></div>
+</main>
+<script type="module">
+import { DESIGNS, buildFrame, transmittance, moduleOf, fpsOf, dateFor } from './js/player.js';
+import { paintGlass, layout } from './js/panel.js';
+
+const $ = (id) => document.getElementById(id);
+const q = new URLSearchParams(location.search);
+const sel = $('design');
+for (const [k, d] of Object.entries(DESIGNS)) sel.add(new Option(`${d.name} (${k})`, k));
+sel.value = DESIGNS[q.get('design')] ? q.get('design') : Object.keys(DESIGNS)[0];
+for (const k of ['style', 'px', 'crop', 'room', 'night', 'speed']) if (q.get(k)) $(k).value = q.get(k);
+if (q.get('tear')) $('tear').checked = true;
+
+// Simulated wall clock: an offset from real time, and a rate.
+let base = q.get('clock') ? dateFor(q.get('clock')).getTime() : Date.now();
+let realStart = performance.now(), paused = q.get('pause') === '1', pausedAt = 0;
+const simNow = () => base + (paused ? pausedAt : (performance.now() - realStart) * Number($('speed').value));
+function setClock(ms) { base = ms; realStart = performance.now(); pausedAt = 0; reset(); }
+$('now').onclick = () => setClock(Date.now());
+$('minute').onclick = () => { const d = new Date(simNow()); d.setSeconds(55, 0); if (d.getTime() <= simNow() - 1000) d.setMinutes(d.getMinutes() + 1); setClock(d.getTime()); };
+$('hour').onclick = () => { const d = new Date(simNow()); d.setMinutes(59, 55, 0); if (d.getTime() <= simNow() - 1000) d.setHours(d.getHours() + 1); setClock(d.getTime()); };
+$('pause').onclick = () => {
+  if (paused) { base = simNow(); realStart = performance.now(); pausedAt = 0; paused = false; }
+  else { pausedAt = (performance.now() - realStart) * Number($('speed').value); paused = true; }
+  $('pause').textContent = paused ? 'Play' : 'Pause';
+  $('pause').setAttribute('aria-pressed', String(paused));
+};
+$('speed').onchange = () => { base = simNow(); realStart = performance.now(); pausedAt = 0; };
+for (const k of ['design', 'style', 'px', 'crop', 'room', 'night', 'tear']) $(k).onchange = reset;
+
+let lcd = null, state = null, lastK = null, built = null, img = null, designMs = 0, shown = 0, fpsSeen = 0, tick = performance.now();
+const cvs = $('glass'), ctx2d = cvs.getContext('2d');
+if (q.get('capture') === '1') document.body.classList.add('capture');
+
+function reset() { lcd = null; state = null; lastK = null; img = null; }
+
+function frame() {
+  const key = sel.value, design = DESIGNS[key], mod = moduleOf(design), fps = fpsOf(design);
+  $('blurb').textContent = design.blurb ?? '';
+  const now = simNow();
+  const k = Math.floor(now / 1000 * fps);
+  if (k !== lastK) {
+    // Send every frame due since the last one (a few at most), so the
+    // liquid crystal's lag and the dirty driver see the real sequence.
+    const from = lastK === null ? k : Math.max(lastK + 1, k - 4);
+    for (let j = from; j <= k; j++) {
+      const t0 = performance.now();
+      built = buildFrame(design, { date: new Date(j * 1000 / fps), t: 0, prev: lcd, night: $('night').value, meter: j === k });
+      designMs = performance.now() - t0;
+      lcd = built.lcd;
+      const T = transmittance(lcd, mod, $('tear').checked ? { tear: true, t: (j + 0.5) / fps, frameStart: j / fps } : {});
+      if (!state || lastK === null) state = Float32Array.from(T);
+      else {
+        const dt = 1 / fps, { rise, fall } = mod.panel.response;
+        const ar = 1 - Math.exp(-dt / rise), af = 1 - Math.exp(-dt / fall);
+        for (let i = 0; i < state.length; i++) { const d = T[i] - state[i]; state[i] += d * (d > 0 ? ar : af); }
+      }
+      lastK = j;
+    }
+    const pxv = $('px').value;
+    const scale = pxv === 'true' ? 96 / 25.4 * (window.devicePixelRatio || 1) : Number(pxv) / mod.pitch;
+    const L = layout(mod, { scale, crop: $('crop').value });
+    if (cvs.width !== L.width || cvs.height !== L.height) {
+      cvs.width = L.width; cvs.height = L.height; img = null;
+      if (pxv === 'true') { cvs.style.width = `${L.width / (window.devicePixelRatio || 1)}px`; cvs.style.height = `${L.height / (window.devicePixelRatio || 1)}px`; }
+      else { cvs.style.width = ''; cvs.style.height = ''; }
+    }
+    if (!img) img = ctx2d.createImageData(L.width, L.height);
+    paintGlass(mod, state, { scale, style: $('style').value, crop: $('crop').value, room: $('room').value, backlight: lcd.backlight, into: img.data });
+    ctx2d.putImageData(img, 0, 0);
+    shown++;
+  }
+  const t = performance.now();
+  if (t - tick > 1000) { fpsSeen = shown * 1000 / (t - tick); shown = 0; tick = t; status(); }
+  requestAnimationFrame(frame);
+}
+
+function status() {
+  if (!built) return;
+  const r = built.report, w = built.cpu?.workload;
+  const d = new Date(simNow());
+  $('status').textContent =
+    `${d.toTimeString().slice(0, 8)}   design ${fpsOf(built.design)} fps, this browser is showing ${fpsSeen.toFixed(0)} fps (frame() + emulator ${designMs.toFixed(1)} ms)\n` +
+    `bus ${r.bytes} bytes, ${r.ms.toFixed(2)} ms on ${built.bus}; panel refresh ${lcd.frameRate().toFixed(1)} Hz; backlight ${lcd.backlight.toFixed(2)}\n` +
+    (w ? `work per frame: ${w.written} px written, ${w.blended} blended, ${w.edges} AA edge px, ${w.ramp} gradient px, ${w.shaded} calls of your per-pixel code, ${w.trig} Math calls` : '');
+}
+
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

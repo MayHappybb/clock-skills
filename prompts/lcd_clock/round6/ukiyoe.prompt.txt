@@ -1,0 +1,258 @@
+Design ONE clock face with the tft-clock skill, in
+/Users/bilibili/coding/lcd_clock/.claude/skills/tft-clock (run every command
+from that directory). Key: 'ukiyoe'.
+
+The display is the Luat Air101-LCD: a 0.96" IPS colour LCD, 160 x 80 pixels
+(21.7 x 10.8 mm), RGB565, ST7735S on SPI, white LED backlight. It is a real
+colour pixel canvas: scenes, characters, real typography and flat graphic
+art are all possible. The owner asked for "all your creativity": a theme,
+fluent and smooth motion (both the constant life and the transitions), and
+interesting fonts that suit the theme. And 60 fps: they want the high
+refresh rate because it looks smoother.
+
+THIS ROUND: FLAT 2D WITH A FEW RESTRAINED EFFECTS. The owner likes the
+flat, 2D graphic themes most: X-Ray best of all (honest false-colour
+imaging, translucent overlapping objects, no fake depth), then
+Metamorphosis (escher: a woodcut tiling, flat two-tone creatures with
+keylines), Illuminated (a manuscript page: flat lapis, vermilion and gold,
+white filigree) and Lascaux (flat pigment on a rock wall). Their reason:
+"the screen has low resolution; if you add 3D effects like shading, round
+animals and so on, it doesn't express well." After the last round (eight
+flat faces: thermal, bayeux, blackfigure, blueprint, kilim, popart, chart,
+cutouts) they added: flat must not mean completely plain, "that would be
+too boring". Metamorphosis is the model: flat woodcut, but with a keyline
+and pale moat round the digits, blinking eyes, a wing-beat wave rolling
+through the flock, a slow morph wave, a bird that works itself free and
+flies round, a colour front sweeping across at the hour. So this round:
+- Add a few restrained effects that belong to the medium, on top of the
+  flat art: a glint travelling along gold leaf or glaze, a slow soft light
+  sweep, a gentle glow or bloom where the medium is lit, a shimmer, a
+  wave rolling through repeated elements, sparkle on a few pixels, a
+  colour front. Two or three such effects, used with taste; they make the
+  face feel alive and precious, never busy, and never fake 3D volume.
+- Work in a flat graphic medium and obey its rules: flat fills from a
+  small deliberate palette, crisp keylines or none, silhouettes that read,
+  and the medium's own flat texture (halftone dots, hatching, weave,
+  stitches, false colour, ink lines, paper grain, printed misregistration).
+- No 3D modelling of forms: no shading ramps that fake volume, no
+  specular blobs that make a shape look round, bevels, ambient occlusion,
+  soft drop shadows or rounded "inflated" shapes; no perspective scenes or
+  depth-of-field. (A flat glint sliding along a flat surface is an effect,
+  not modelling, and is welcome.)
+  A flat cast shadow or an offset print layer is fine if the medium has it.
+- Hard pixels are the default; AA only where a big flat shape needs a clean
+  edge or a thin line glides. Design at the pixel, as a print or a textile
+  is designed for its grid.
+- Motion stays smooth and constant at 60 fps, but it is the motion of the
+  medium: things slide, print, stitch, weave, cut, scroll, flip, scan,
+  register, change colour, not tumble in 3D.
+- Read sim/designs/xray.js, escher.js, illuminated.js and lascaux.js (and
+  their helpers) first: they are the owner's favourites. Note how xray
+  derives every pixel from flat material maps through a palette.
+
+First read SKILL.md, then sim/js/gfx.js and sim/js/kit.js for the API.
+Look at out/gallery.png and out/gallery-round1.png to
+out/gallery-round5.png: the 36 faces already made for this panel
+(harbour, koi, mischief, chameleon; shanshui, jelly, mitosis, vector;
+xray, synchro, pcb, mochi; escher, illuminated, abyss, match3, topiary,
+lascaux, racetrack, artillery; cropcircle, icelantern, triadic,
+katamari; thermal, bayeux, blackfigure, blueprint, kilim, popart, chart,
+cutouts). Don't repeat any of these themes. They show the mechanics;
+they are not the creative bar.
+
+Edit only sim/designs/ukiyoe.js. It is already registered as a placeholder;
+give it a real name and blurb and keep fps: 60. Don't touch other designs,
+index.js, sim/js/ or tools/; put any helpers in your own file
+(sim/designs/ukiyoe-*.js). If you find a bug in the shared tools, report it,
+don't fix it.
+
+Starting idea (push past it, or replace it if you find something stronger,
+but stay in its world):
+Ukiyo-e woodblock print (Hokusai, Hiroshige). The glass is a print: flat colour blocks printed from separate woodblocks, crisp sumi keylines, Prussian blue, vermilion, pale persimmon, sky with bokashi (the printer's hand-wiped gradation, the medium's one allowed gradient, dithered), visible washi paper fibre, a red cartouche with the title and a seal in a carved script you draw. The numerals belong to the scene the way Hokusai's waves and Mount Fuji do: a great wave whose claws curl into digits, a Fuji whose snowcap outline traces a numeral, a bridge and travellers, pines bent in wind... design all ten so they read first as digits but are clearly carved and printed. Restrained effects: the wave's foam fingers flicker; a flock of birds rolls through the sky in a slow wave; rain lines (Hiroshige's sudden shower) slide diagonally for a while; a soft sheen of mica ground (kirazuri) glints along the sky. Minute turn: the print is made block by block: the old digit's colour blocks lift off one by one as fresh paper shows (before :00), and the new digit is printed after :00: keyblock line first, then each colour block presses down in register with a small offset settle. Hour: a bigger show, e.g. the season changes (a colour front sweeps the print from summer to snow or cherry blossom) while the keylines stay. Strictly flat woodblock colour with its own textures.
+
+GOAL: a stranger looks at it and says "wait, that's a clock?" Creativity
+comes first. A competent, pretty, conventional face is a fail.
+
+REQUIREMENTS
+1. Concept: the time is expressed by the theme's own mechanism. Test: if
+   swapping your digits for a plain font still works, the digits are not
+   part of the idea yet.
+2. Letterforms: if the time is shown as digits (it doesn't have to be),
+   draw your own, made of or carried by the theme's material, designed for
+   this pixel grid. The kit's fonts (strokeDigit, segDigit, dotText, 3x5,
+   5x7) are not allowed for the time, not even as a skeleton with texture
+   painted on. Design all ten digits as a set and make them beautiful at
+   this resolution (hard pixels or AA, chosen per element, on purpose).
+   Small secondary type (a date, a label), if any, must be in the same
+   world's style too.
+3. Use the canvas: a 2:1 strip, full colour, the backlight. Never the
+   default of four equal digits in a row with decoration around them.
+4. Always alive at 60 fps: smooth motion that belongs to the theme, every
+   second, not only at the turn. Positions glide by fractions of a pixel
+   (AA), they don't hop. Motion of ~0.3-2 px per frame reads smooth on this
+   glass; the crystal's ~15 ms response is about one 60 fps frame, so fast
+   high-contrast motion smears (renders show it; that is the real look).
+5. Minute turn: the old digit physically becomes the new one through the
+   theme's process, 0.8-3 s, eased, no pops or cuts. The time is never wrong
+   mid-transition (empty or half-drawn is fine; a different number is not).
+   The hour gets a bigger, distinct show, and the time stays readable
+   through it (blank for more than ~1 s is a fail).
+6. Colour: design a palette for the theme, say why in the header comment.
+   RGB565 bands gradients unless dithered. It is an LCD: black is a dark
+   grey that glows a little, so a mostly black face looks like a weak OLED;
+   if your world is dark, make the dark itself deliberate (deep coloured
+   darks, vignettes, glow). Dim with ctx.night through ctx.lcd.backlight,
+   and check the face still reads at night.
+7. 60 fps on a small MCU: fps: 60 means a 16.7 ms budget. Keep the rough C
+   estimate for esp32c3 (no FPU, the weakest profile) at most ~14 ms in the
+   worst frame of check.mjs, and the mean well under. Per-pixel callbacks
+   (paint, fillWhere, fillSDF) over big areas are what blow it: precompute
+   sprites, masks or distance fields per minute and look them up; use
+   g.coarse for soft fields; kit.sin/cos, not Math.sin, in hot loops. No
+   per-pixel allocation or closures in hot loops; keep hot objects
+   monomorphic. Check tearing for fast horizontal motion of tall shapes
+   (render --tear); driver: 'dirty' is an option if little changes.
+8. Real size: the whole face is 21.7 x 10.8 mm seen from arm's length.
+   Detail finer than ~2 px vanishes. Judge legibility at --scale 4 (about
+   true size) as well as zoomed.
+9. Technical:
+   - frame() is a pure function of time: closed form, or deterministic
+     caches keyed by the minute. If you must simulate, simulate from the
+     start of the current minute inside frame, warmup <= 2 s of work.
+   - `node tools/check.mjs --design ukiyoe` passes (it takes ~40 s at 60 fps).
+   - Work done outside the main canvas (a once-a-minute redraw into your
+     own buffer) is invisible to the estimate: keep it small, or spread it
+     over several frames, and state its rough cost in the report.
+   - The kit's colour helpers (mix, dither565, ...) are billed as Math
+     calls per use; in per-pixel loops use your own integer arithmetic.
+   - Flash: precomputed tables and sprites should total <= ~256 KB on the
+     device (RGB565 = 2 bytes a pixel); state the total in the report.
+   - No hidden extra features.
+
+PROCESS
+1. Pitch three very different concepts in your theme's world. Pick the
+   strongest, judging harshly.
+2. Digits first. Render every digit in every slot:
+   node tools/render.mjs ukiyoe --clocks 00:00:30,11:11:30,22:22:30,03:33:30,04:44:30,05:55:30,16:06:30,17:17:30,18:18:30,19:39:30 --px 3 --cols 2 --out out/ukiyoe-digits.png
+   Iterate until each digit is beautiful and unmistakable.
+3. Build, then render these, and look at every image:
+   - out/ukiyoe.png (and --scale 4 --out out/ukiyoe-true.png)
+   - out/ukiyoe-turn.png: --clock 10:09:58 --frames 12 --duration 4 --sheet --px 3 --cols 3
+   - out/ukiyoe-hour.png: the same at --clock 10:59:58, and once at 23:59:58
+   - out/ukiyoe-day.png: --clocks 02:47:30,07:15:30,12:00:30,18:05:30 --px 3
+   - out/ukiyoe.gif: --clock 10:09:57 --frames 150 --duration 3 --gif --px 4
+     (50 fps is the GIF limit), and out/ukiyoe-hour.gif at 10:59:57
+   Contact sheets hide pops: also render a dense sheet (--frames 25) of each
+   transition before calling it smooth.
+4. Critique it in the owner's voice. Is the font, layout, motion or
+   transition ordinary? Is there a wow moment? Fix the weakest part and
+   re-render. At least two rounds.
+5. Report:
+   - the idea in one sentence
+   - render paths
+   - the check.mjs result (incl. esp32c3 max/mean estimate)
+   - the honest weakest point
+
+LESSONS FROM ~120 FACES ON SIBLING SKILLS (1602, OLED, LED matrices)
+- The most common weakness: at rest the face still reads as four plain
+  digits with a themed background, and the wow lives only in the turns.
+  Make the time at rest belong to the theme too: carried by objects,
+  characters, light or material, or by a non-digit system (dials, counts,
+  positions) that still reads clearly.
+- The strongest stills put the time on a big, bold physical object of the
+  theme (wagon cargo, wax candles, mahjong tiles, leather puppets) with the
+  world alive around it.
+- Characters below ~12 px read as blobs: draw heroes bold and simple
+  (outlined, a few flat colours, clear eyes) and check them at --scale 4.
+- Anything else that looks like a time, or any numeral-sized ring or stroke
+  beside the digits, competes with the time: keep it clearly secondary.
+- Background made of the same stuff as the digits competes with them: keep
+  the ground quieter, give numerals a keyline or a contrast moat, one hue
+  family for the time.
+- Fixes needed in past rounds, check yours for the same: a limb resting
+  over a digit made 0 read as 6; a night state made the hours vanish; a
+  bright noon washed the digits out; 4 read as U; 9 read as 'a' in a squat
+  slot; an effect that changes over the minute closed a counter late in
+  the minute (check stills at :05, :30 and :55); an hour show ran digits
+  backwards and showed a wrong number for half a second (check dense
+  sheets across the hour).
+- Don't add the owner's avatar or any recurring mascot. Characters, if any,
+  belong to the theme.
+- Round 1 on this panel (shanshui, jelly, mitosis, vector) all passed, and
+  these are the fixes I still had to send back. Check yours for the same:
+  - All four still read, at rest, as HH then MM left to right (staggered
+    depth and size helped, but the wow lived in the turns). Push harder on
+    a composition where the time sits inside the world's own arrangement.
+  - The transition's agent must belong to the world's style: a fluffy
+    white cartoon cumulus in an ink-painted scroll looked pasted on.
+  - Hero objects must be recognisable at --scale 4 by a stranger: the
+    dragon read as an eel, diatoms as pills. Give each its defining
+    silhouette parts (horns and claws; ribs), drawn flat.
+  - Two of four failed at night: muddy colours on near-black, or the far
+    digits vanishing. Design the night palette on purpose, and render
+    02:47:30 at --scale 4 with night dimming.
+  - When all four digits change at midnight, keep any blank under ~1 s.
+- Rounds 2 and 3 (12 faces) all passed; the fixes I still had to send:
+  - Digits that read as LETTERS: a peaked 4 read as "A" (17:46 read as
+    "17 A6"); check 4/A, 7/T or ?, 1/I or !, 0/O is fine. A 6 or 0 whose
+    counter fills in reads as 8.
+  - Anything that is not a digit but forms a stroke near one reads as an
+    extra digit: stray fish next to "47" made "i47". Keep loose actors
+    away from the digits or clearly dimmer and smaller.
+  - Snapping numerals to a coarse grid of the theme's units (10 px
+    creature tiles) filled the counters and made 6 read 8 and 09 read B8.
+    Draw each digit as a clean shape with open counters first, then let
+    the material fill or clip to it.
+  - Heroes drawn as glyphs with sticks attached (cave animals as digits
+    with fork legs and knob heads) don't read: give them a defining flat
+    silhouette (a swelling body outline, a profile head, horns).
+  - Material-made digits on a ground of the same saturation (gems on a
+    board of gems, white dough on pale regolith) read by outline only:
+    calm the ground, add a keyline or a flat moat of ground colour.
+  - A digit that rotates or turns in depth while shown can read as another
+    digit (a 0 seen edge-on read as 1, so 18:00 showed "18:01"). Flat
+    media avoid this: no rotation that narrows or mirrors a shown digit.
+- Keep the time the strongest contrast on the glass, and the ground
+  calmer: in xray the field is plain and every object is false colour.
+- Round 5 (8 flat faces) all passed; the fixes I still had to send:
+  - Never move the whole time across a screen edge: an hour scroll that
+    carried the frieze off the left showed "4·59" at 14:59:59 (the 1 had
+    gone). Pin the digits; scroll only the ground behind them.
+  - Partial digits read as other digits: a top-down wipe left an 8's lower
+    loop (read 0); a 9 whose bowl was painted first read 0; a half-inked 0
+    read J. Remove a digit evenly (dabs, fade, dissolve) or draw its full
+    outline first, then fill.
+  - Digits made of a medium's motifs still read as a bold display typeface
+    with texture: draw the letterforms in the medium's own geometry
+    (stepped diagonals, cut curves, stitch runs), not a font with a skin.
+  - Hero objects shaped as numerals tended to read as decorated numerals
+    (a shield 0, a croissant 3): if the object is the point, give it its
+    defining parts big enough to read at --scale 4.
+- Keep sim/designs/ukiyoe.js importable at all times: every tool loads
+  index.js, which imports every design, so a half-written file breaks
+  the other agents' renders too. Make each edit leave the file valid. If
+  your renders fail because another design is mid-edit, wait a minute
+  and retry; don't touch their file.
+
+THE OWNER'S TASTE
+- On this panel: xray most, then escher, illuminated, lascaux, all flat 2D
+  with a little life on top (see THIS ROUND above). 3D shading and rounded
+  volumes on this low resolution did not land; completely plain flat is
+  too boring.
+- On sibling skills: smooth, physical, fancy transitions (scope, radar,
+  sand); numberfolk (digits as cute characters); urwerk and ressence ("not
+  digits anymore"); playful character and game designs.
+- Disliked: ordinary or kit fonts; four big digits with decoration; static
+  between turns; abrupt transitions; elements that don't belong to one
+  world; "good parts but no wow moment".
+- They accept reduced legibility for real artistry, but the time must
+  still be readable.
+
+Work alone: don't spawn subagents. Be economical: read files in focused
+slices, keep tool output short (pipe big outputs through head/tail), look
+at renders instead of dumping numbers, and don't re-read files you already
+have. Seven other agents are building other faces in parallel on this
+machine, so:
+- only ever write sim/designs/ukiyoe*.js and out/ukiyoe*
+- render sequentially, and keep GIFs to the settings above
+- don't run tools/serve.mjs

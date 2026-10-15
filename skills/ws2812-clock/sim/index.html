@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LED board clock simulator</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #0b0b0d; color: #ddd; font: 14px/1.4 system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; }
+  header { display: flex; flex-wrap: wrap; gap: 10px 16px; padding: 12px 16px; align-items: center; justify-content: center; }
+  label { display: flex; gap: 6px; align-items: center; }
+  select, button, input { font: inherit; background: #1d1d22; color: #eee; border: 1px solid #444; border-radius: 6px; padding: 4px 8px; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid #8ab4ff; outline-offset: 2px; }
+  #view { display: flex; justify-content: center; align-items: center; width: 96vw; height: 76vh; }
+  canvas { max-width: 100%; max-height: 100%; }
+  #stats { font-variant-numeric: tabular-nums; color: #aaa; padding: 8px; text-align: center; }
+  #note { color: #e0b060; min-height: 1.4em; }
+</style>
+</head>
+<body>
+<header>
+  <label>Design <select id="design"></select></label>
+  <label>Layout <select id="layout"></select></label>
+  <label>Look <select id="look"><option>bare</option><option>smoke</option><option>opal</option></select></label>
+  <label>Gap mm <input id="gap" type="number" min="1" max="40" step="1" value="8" style="width:4em"></label>
+  <label>Room <select id="room"><option>dark</option><option>lit</option></select></label>
+  <label>Night <select id="night"><option>auto</option><option>off</option><option>on</option></select></label>
+  <label>Speed <select id="speed"><option value="1">1x</option><option value="10">10x</option><option value="60">60x</option></select></label>
+  <button id="minute" type="button">Next minute turn</button>
+  <button id="hour" type="button">Next hour turn</button>
+  <button id="now" type="button">Real time</button>
+</header>
+<div id="view"><canvas id="c" role="img" aria-label="Simulated LED boards"></canvas></div>
+<div id="stats" aria-live="off"></div>
+<div id="note"></div>
+<script type="module">
+import { runner, DESIGNS, LAYOUTS, dateFor } from './js/player.js';
+import { renderFrame, frameSize } from './js/render.js';
+import { createGLRenderer } from './js/glrender.js';
+import { wireBudget, hub75Budget } from './js/ws2812.js';
+
+const q = new URLSearchParams(location.search);
+const $ = (id) => document.getElementById(id);
+const cv = $('c');
+const gl = createGLRenderer(cv);                  // null without WebGL2: fall back to the CPU renderer
+const ctx2d = gl ? null : cv.getContext('2d');
+
+for (const [k, d] of Object.entries(DESIGNS)) $('design').add(new Option(`${d.name} (${k})`, k));
+$('design').value = DESIGNS[q.get('design')] ? q.get('design') : Object.keys(DESIGNS)[0];
+
+function fillLayouts(first) {
+  const d = DESIGNS[$('design').value], ok = d.layouts ?? ['*'];
+  $('layout').innerHTML = '';
+  const keys = ok.includes('*') ? [...new Set([...ok.filter((k) => k !== '*'), ...Object.keys(LAYOUTS)])] : ok;
+  for (const k of keys) $('layout').add(new Option(`${k}: ${LAYOUTS[k].label}`, k));
+  if (first && keys.includes(q.get('layout'))) $('layout').value = q.get('layout');
+  const look = typeof d.look === 'object' ? d.look : { look: d.look ?? 'bare' };
+  $('look').value = (first && q.get('look')) || look.look;
+  $('gap').value = (first && q.get('gap')) || look.gap || 8;
+}
+
+let run, speed = 1, simT = 0, lastWall = performance.now(), anchor = q.get('clock') ? dateFor(q.get('clock')) : new Date(), scene = null;
+const paused = !!q.get('pause');   // ?clock=10:59:58&pause=1 holds one instant
+
+function setScene() {
+  const L = run.layout, view = $('view').getBoundingClientRect();
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  // fill the view; GPU: at the screen's own resolution, CPU: at most 4 px/mm
+  let scale = Math.min((view.width) / (L.bbox.w + 8), (view.height) / (L.bbox.h + 8));
+  scale = gl ? Math.min(scale * dpr, 24) : Math.min(scale, 4);
+  const opts = { look: $('look').value, gap: Number($('gap').value), room: $('room').value, scale };
+  const size = gl ? gl.setScene(L, opts) : frameSize(L, opts);
+  if (!gl) { cv.width = size.width; cv.height = size.height; }
+  // GPU: canvas pixels are device pixels; CPU: a small canvas stretched to fit
+  cv.style.width = `${gl ? size.width / dpr : size.width * Math.min(view.width / size.width, view.height / size.height)}px`;
+  scene = opts;
+}
+function restart() {
+  const d = DESIGNS[$('design').value];
+  run = runner(d, { layout: $('layout').value, date0: anchor, night: $('night').value });
+  simT = 0;
+  $('note').textContent = (d.blurb ?? '') + (gl ? '' : '  (no WebGL2 here: slow CPU preview)');
+  setScene();
+}
+function jump(kind) {            // 3 s before the next minute or hour turn
+  const now = new Date(anchor.getTime() + simT * 1000), step = kind === 'hour' ? 3600 : 60;
+  anchor = new Date((Math.ceil(now.getTime() / 1000 / step) * step - 3) * 1000);
+  restart();
+}
+$('design').onchange = () => { fillLayouts(false); restart(); };
+for (const id of ['layout', 'night']) $(id).onchange = restart;
+for (const id of ['look', 'gap', 'room']) $(id).onchange = setScene;          // no need to rerun the design
+$('speed').onchange = () => { speed = Number($('speed').value); };
+$('minute').onclick = () => jump('minute');
+$('hour').onclick = () => jump('hour');
+$('now').onclick = () => { anchor = new Date(); restart(); };
+let resizeT; window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(setScene, 150); });
+fillLayouts(true); restart();
+
+// measured, not assumed: frames the browser actually shows, and where the time goes
+let frames = 0, fpsShown = 0, fpsT = performance.now(), msDesign = 0, msDraw = 0, statT = 0;
+let firstFrame = true;
+function tick() {
+  const wall = performance.now();
+  if (firstFrame && q.get('report')) fetch('/report', { method: 'POST', body: JSON.stringify({ ready: +wall.toFixed(0) }) }).catch(() => {});
+  firstFrame = false;
+  if (!paused) simT += ((wall - lastWall) / 1000) * speed;
+  lastWall = wall;
+  const f = run.at(simT);
+  const t1 = performance.now();
+  if (gl) gl.draw(f.duty);
+  else { const img = renderFrame(run.layout, f.duty, scene); ctx2d.putImageData(new ImageData(img.rgba, img.width, img.height), 0, 0); }
+  const t2 = performance.now();
+  msDesign = msDesign * 0.9 + (t1 - wall) * 0.1; msDraw = msDraw * 0.9 + (t2 - t1) * 0.1;
+  frames++;
+  if (wall - fpsT >= 1000) {
+    fpsShown = (frames * 1000) / (wall - fpsT); frames = 0; fpsT = wall;
+    if (q.get('report')) fetch('/report', { method: 'POST', body: JSON.stringify({ fps: +fpsShown.toFixed(1), msDesign: +msDesign.toFixed(2), msDraw: +msDraw.toFixed(2), gl: !!gl, w: cv.width, h: cv.height }) }).catch(() => {});
+  }
+  if (wall - statT > 250) {                       // text 4x a second, not every frame
+    statT = wall;
+    const L = run.layout, w = wireBudget(L), hb = hub75Budget(L);
+    const bus = (w.lanes.length ? `wire ${(w.frameUs / 1000).toFixed(1)} ms/frame (max ${w.maxFps.toFixed(0)} fps) · ` : '') +
+      (hb.chains.length ? `HUB75 ${hb.chains.map((c) => c.refresh.toFixed(0) + ' Hz').join('+')} refresh · ` : '');
+    $('stats').textContent = `${f.date.toTimeString().slice(0, 8)} · ${L.n} LEDs · ${f.amps.toFixed(2)} A · ` +
+      bus + `design ${msDesign.toFixed(2)} ms · ` +
+      `draw ${msDraw.toFixed(2)} ms (${gl ? 'GPU' : 'CPU'}) · showing ${fpsShown.toFixed(0)} fps (design ${run.fps})`;
+  }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

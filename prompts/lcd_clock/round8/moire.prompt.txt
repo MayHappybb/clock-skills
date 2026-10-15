@@ -1,0 +1,289 @@
+Design ONE clock face with the tft-clock skill, in
+/Users/bilibili/coding/lcd_clock/.claude/skills/tft-clock (run every command
+from that directory). Key: 'moire'.
+
+The display is the Luat Air101-LCD: a 0.96" IPS colour LCD, 160 x 80 pixels
+(21.7 x 10.8 mm), RGB565, ST7735S on SPI, white LED backlight. It is a real
+colour pixel canvas: scenes, characters, real typography and flat graphic
+art are all possible. The owner asked for "all your creativity": a theme,
+fluent and smooth motion (both the constant life and the transitions), and
+interesting fonts that suit the theme. And 60 fps: they want the high
+refresh rate because it looks smoother.
+
+THIS ROUND: BINARY, 1-BIT, TWO COLOURS. The owner asked for faces in
+"single colour", and clarified: "I mean binary, like the 12864 OLED
+display, only support 0/1, but with different color". So:
+- Every pixel of every frame is either INK or GROUND: exactly two RGB565
+  values, one fixed pair for the whole face, all day (rest, turns, hour
+  show, night). Your seed names the pair, like a real mono module (amber
+  OLED on black, white-on-blue STN LCD, ink on paper); keep it or move it
+  a little, but never add a third value. Swapping the roles (ink becomes
+  ground, ground becomes ink) is allowed: it is still the same two colours.
+- So: no anti-aliasing ({ aa: true } is out), no g.gradient / g.radial /
+  g.coarse (they blend), no opacity { a }, no mix(), no colour fades, no
+  dimmed or "ghost" copies. Grey exists only the 1-bit way: ordered or
+  error-diffused dither patterns, hatching, stipple, line density, halftone
+  dots, all in pure ink on pure ground. Don't use temporal dithering
+  (flickering a pixel to fake grey).
+- Recommended structure: draw the frame into your own 1-bit mask
+  (Uint8Array(160*80), or bit-packed like the 12864's frame) and write it
+  to g.buf as two colours at the end, or use only hard fills in the two
+  colours. Prove it: from the skill directory run
+    node ../../../prompts/round8/binary.mjs moire
+  (it samples ~150 frames over rest, night, a minute turn, an hour turn and
+  midnight, and must PASS: at most two distinct colours over all of them).
+  Add your own clocks as extra arguments to test more moments.
+- Smoothness without AA: positions are whole pixels, so smooth motion
+  means many small 1-px steps. At 60 fps, 1 px per frame or less reads as
+  a glide (0.5 px/frame = a step every other frame); bigger steps per frame
+  look like hops. Ease by changing the step rate. Transitions can also be
+  smooth as fronts: a dither threshold sweeping, a wipe, a pattern growing
+  pixel by pixel. Think like the best 1-bit work: the early Macintosh (Susan
+  Kare), Playdate games, 1-bit pixel art, demoscene effects on monochrome
+  machines, woodcut and engraving.
+- Night: dim only with ctx.lcd.backlight (the two colours stay); the face
+  must still read at the lower level.
+- Dynamic, fancy effects are wanted: rich motion every second, a flowing
+  minute turn as the centrepiece, a real wow at the hour. The time stays
+  the strongest read on the glass.
+- Read sim/designs/xray.js and escher.js (and their helpers) first: the
+  owner's favourites on this panel (flat 2D, a few effects on top). Note how
+  xray derives every pixel from material maps through a palette; a 1-bit
+  map through a two-colour palette is the same idea.
+
+First read SKILL.md, then sim/js/gfx.js and sim/js/kit.js for the API.
+Look at out/gallery.png and out/gallery-round1.png to
+out/gallery-round7.png: the 48 faces already made for this panel
+(harbour, koi, mischief, chameleon; shanshui, jelly, mitosis, vector;
+xray, synchro, pcb, mochi; escher, illuminated, abyss, match3, topiary,
+lascaux, racetrack, artillery; cropcircle, icelantern, triadic,
+katamari; thermal, bayeux, blackfigure, blueprint, kilim, popart, chart,
+cutouts; ukiyoe, stainedglass, metro, mosaic, marbling, delft, tangram,
+doppler; murmuration, cartridge, papercut, chladni). Don't repeat any of
+these themes, nor the 1-bit OLED classics from the sibling skill (scope,
+radar, sand, cube, nixie). They show the mechanics;
+they are not the creative bar.
+
+Edit only sim/designs/moire.js. It is already registered as a placeholder;
+give it a real name and blurb and keep fps: 60. Don't touch other designs,
+index.js, sim/js/ or tools/; put any helpers in your own file
+(sim/designs/moire-*.js). If you find a bug in the shared tools, report it,
+don't fix it.
+
+Starting idea (push past it, or replace it if you find something stronger,
+but stay in its world):
+Op art and moiré, the 1960s art of Bridget Riley and Vasarely, plus the scanimation (barrier-grid) trick of old animated books. PAIR: near-white #f0f4ff ink on deep blue #1030c8 ground, like a white-on-blue STN 12864 module. The glass is all lines: fine parallel stripes, concentric rings, checks and waves at 1-2 px pitch, and the numerals are hidden in them the moiré way: inside a numeral the stripes are shifted half a period (or have another angle or pitch), so the digit appears out of the pattern as a crisp, vibrating shape with no outline drawn, and as the stripes drift the digit stays put while everything shimmers. Design ten numerals for this medium (geometric, op-art, bold enough that phase-shift edges read them at --scale 4; the digits may also be denser or a different pattern so they are always the strongest read). Constant dynamic life: the grating drifts and breathes, a second transparent grating slides over the first so moiré fringes sweep across the glass in slow waves, Riley's waves ripple, a Vasarely checkerboard swells into a bulge (flat pattern only: the distortion is a line displacement, not shading). Minute turn, the centrepiece: the changing digit's phase shift dissolves evenly back into the field (gone before :00), then after :00 the new digit's shift grows in from its outline, a moiré interference fringe rolling across it as it locks into phase. Hour: a bigger show: the whole field goes through a sequence of op-art pieces (a Riley wave, a Vasarely sphere-free bulge, a spiral, a scanimation burst where a sliding barrier grid animates a running figure) while the hour digits stay readable. Mind the panel: 1-px high-contrast lines moving fast smear and tear on this glass; keep the motion at ~1 px a frame or slower and render --tear.
+
+GOAL: a stranger looks at it and says "wait, that's a clock?" Creativity
+comes first. A competent, pretty, conventional face is a fail.
+
+REQUIREMENTS
+1. Concept: the time is expressed by the theme's own mechanism. Test: if
+   swapping your digits for a plain font still works, the digits are not
+   part of the idea yet.
+2. Letterforms: if the time is shown as digits (it doesn't have to be),
+   draw your own, made of or carried by the theme's material, designed for
+   this pixel grid. The kit's fonts (strokeDigit, segDigit, dotText, 3x5,
+   5x7) are not allowed for the time, not even as a skeleton with texture
+   painted on. Design all ten digits as a set and make them beautiful at
+   this resolution, in 1-bit: hard pixels only, every edge designed.
+   Small secondary type (a date, a label), if any, must be in the same
+   world's style too.
+3. Use the canvas: a 2:1 strip, the whole 160x80 (not a 128x64 box), the
+   backlight. Never the
+   default of four equal digits in a row with decoration around them.
+4. Always alive at 60 fps: smooth motion that belongs to the theme, every
+   second, not only at the turn. Positions step one whole pixel at a time
+   (see THIS ROUND): at most ~1 px per frame per moving thing reads as a
+   glide; the crystal's ~15 ms response is about one 60 fps frame, so fast
+   high-contrast motion smears (renders show it; that is the real look).
+5. Minute turn: the old digit physically becomes the new one through the
+   theme's process, 0.8-3 s, eased, no pops or cuts. The time is never wrong
+   mid-transition (empty or half-drawn is fine; a different number is not).
+   The hour gets a bigger, distinct show, and the time stays readable
+   through it (blank for more than ~1 s is a fail).
+6. Colour: two colours only (see THIS ROUND); say why your pair suits the
+   theme in the header comment, and pass binary.mjs. It is an LCD: a black
+   ground is a dark grey that glows a little; if your ground is dark, that
+   is the real look of a mono module on this glass. Dim with ctx.night
+   through ctx.lcd.backlight, and check the face still reads at night.
+7. 60 fps on a small MCU: fps: 60 means a 16.7 ms budget. Keep the rough C
+   estimate for esp32c3 (no FPU, the weakest profile) at most ~14 ms in the
+   worst frame of check.mjs, and the mean well under. Per-pixel callbacks
+   (paint, fillWhere, fillSDF) over big areas are what blow it: precompute
+   sprites, masks or distance fields per minute and look them up;
+   kit.sin/cos, not Math.sin, in hot loops. No
+   per-pixel allocation or closures in hot loops; keep hot objects
+   monomorphic. Check tearing for fast horizontal motion of tall shapes
+   (render --tear); driver: 'dirty' is an option if little changes.
+8. Real size: the whole face is 21.7 x 10.8 mm seen from arm's length.
+   Detail finer than ~2 px vanishes. Judge legibility at --scale 4 (about
+   true size) as well as zoomed.
+9. Technical:
+   - frame() is a pure function of time: closed form, or deterministic
+     caches keyed by the minute. If you must simulate, simulate from the
+     start of the current minute inside frame, warmup <= 2 s of work.
+   - `node tools/check.mjs --design moire` passes (it takes ~40 s at 60 fps),
+     and `node ../../../prompts/round8/binary.mjs moire` passes.
+   - RAM: keep working buffers (particles, masks, caches) at most ~150 KB
+     beyond the 25 KB frame buffer, and state the peak in the report.
+   - Work done outside the main canvas (a once-a-minute redraw into your
+     own buffer) is invisible to the estimate: keep it small, or spread it
+     over several frames, and state its rough cost in the report.
+   - The kit's colour helpers (mix, dither565, ...) are billed as Math
+     calls per use; in per-pixel loops use your own integer arithmetic.
+   - Flash: precomputed tables and sprites should total <= ~256 KB on the
+     device (RGB565 = 2 bytes a pixel); state the total in the report.
+   - No hidden extra features.
+
+PROCESS
+1. Pitch three very different concepts in your theme's world. Pick the
+   strongest, judging harshly.
+2. Digits first. Render every digit in every slot:
+   node tools/render.mjs moire --clocks 00:00:30,11:11:30,22:22:30,03:33:30,04:44:30,05:55:30,16:06:30,17:17:30,18:18:30,19:39:30 --px 3 --cols 2 --out out/moire-digits.png
+   Iterate until each digit is beautiful and unmistakable.
+3. Build, then render these, and look at every image:
+   - out/moire.png (and --scale 4 --out out/moire-true.png)
+   - out/moire-turn.png: --clock 10:09:58 --frames 12 --duration 4 --sheet --px 3 --cols 3
+   - out/moire-hour.png: the same at --clock 10:59:58, and once at 23:59:58
+   - out/moire-day.png: --clocks 02:47:30,07:15:30,12:00:30,18:05:30 --px 3
+   - out/moire.gif: --clock 10:09:57 --frames 150 --duration 3 --gif --px 4
+     (50 fps is the GIF limit), and out/moire-hour.gif at 10:59:57
+   Contact sheets hide pops: also render a dense sheet (--frames 25) of each
+   transition before calling it smooth.
+4. Critique it in the owner's voice. Is the font, layout, motion or
+   transition ordinary? Is there a wow moment? Fix the weakest part and
+   re-render. At least two rounds.
+5. Report:
+   - the idea in one sentence
+   - render paths
+   - the check.mjs result (incl. esp32c3 max/mean estimate), the binary.mjs
+     result, flash and RAM totals
+   - the honest weakest point
+
+LESSONS FROM ~120 FACES ON SIBLING SKILLS (1602, OLED, LED matrices)
+- The most common weakness: at rest the face still reads as four plain
+  digits with a themed background, and the wow lives only in the turns.
+  Make the time at rest belong to the theme too: carried by objects,
+  characters, light or material, or by a non-digit system (dials, counts,
+  positions) that still reads clearly.
+- The strongest stills put the time on a big, bold physical object of the
+  theme (wagon cargo, wax candles, mahjong tiles, leather puppets) with the
+  world alive around it.
+- Characters below ~12 px read as blobs: draw heroes bold and simple
+  (outlined, a few flat colours, clear eyes) and check them at --scale 4.
+- Anything else that looks like a time, or any numeral-sized ring or stroke
+  beside the digits, competes with the time: keep it clearly secondary.
+- Background made of the same stuff as the digits competes with them: keep
+  the ground quieter, give numerals a keyline or a contrast moat, the time
+  in the boldest ink.
+- Fixes needed in past rounds, check yours for the same: a limb resting
+  over a digit made 0 read as 6; a night state made the hours vanish; a
+  bright noon washed the digits out; 4 read as U; 9 read as 'a' in a squat
+  slot; an effect that changes over the minute closed a counter late in
+  the minute (check stills at :05, :30 and :55); an hour show ran digits
+  backwards and showed a wrong number for half a second (check dense
+  sheets across the hour).
+- Don't add the owner's avatar or any recurring mascot. Characters, if any,
+  belong to the theme.
+- Round 1 on this panel (shanshui, jelly, mitosis, vector) all passed, and
+  these are the fixes I still had to send back. Check yours for the same:
+  - All four still read, at rest, as HH then MM left to right (staggered
+    depth and size helped, but the wow lived in the turns). Push harder on
+    a composition where the time sits inside the world's own arrangement.
+  - The transition's agent must belong to the world's style: a fluffy
+    white cartoon cumulus in an ink-painted scroll looked pasted on.
+  - Hero objects must be recognisable at --scale 4 by a stranger: the
+    dragon read as an eel, diatoms as pills. Give each its defining
+    silhouette parts (horns and claws; ribs), drawn flat.
+  - Two of four failed at night: muddy colours on near-black, or the far
+    digits vanishing. Design the night palette on purpose, and render
+    02:47:30 at --scale 4 with night dimming.
+  - When all four digits change at midnight, keep any blank under ~1 s.
+- Rounds 2 and 3 (12 faces) all passed; the fixes I still had to send:
+  - Digits that read as LETTERS: a peaked 4 read as "A" (17:46 read as
+    "17 A6"); check 4/A, 7/T or ?, 1/I or !, 0/O is fine. A 6 or 0 whose
+    counter fills in reads as 8.
+  - Anything that is not a digit but forms a stroke near one reads as an
+    extra digit: stray fish next to "47" made "i47". Keep loose actors
+    away from the digits or clearly dimmer and smaller.
+  - Snapping numerals to a coarse grid of the theme's units (10 px
+    creature tiles) filled the counters and made 6 read 8 and 09 read B8.
+    Draw each digit as a clean shape with open counters first, then let
+    the material fill or clip to it.
+  - Heroes drawn as glyphs with sticks attached (cave animals as digits
+    with fork legs and knob heads) don't read: give them a defining flat
+    silhouette (a swelling body outline, a profile head, horns).
+  - Material-made digits on a ground of the same saturation (gems on a
+    board of gems, white dough on pale regolith) read by outline only:
+    calm the ground, add a keyline or a flat moat of ground colour.
+  - A digit that rotates or turns in depth while shown can read as another
+    digit (a 0 seen edge-on read as 1, so 18:00 showed "18:01"). Flat
+    media avoid this: no rotation that narrows or mirrors a shown digit.
+- Keep the time the strongest contrast on the glass, and the ground
+  calmer: in xray the field is plain and every object is false colour.
+- Round 5 (8 flat faces) all passed; the fixes I still had to send:
+  - Never move the whole time across a screen edge: an hour scroll that
+    carried the frieze off the left showed "4·59" at 14:59:59 (the 1 had
+    gone). Pin the digits; scroll only the ground behind them.
+  - Partial digits read as other digits: a top-down wipe left an 8's lower
+    loop (read 0); a 9 whose bowl was painted first read 0; a half-inked 0
+    read J. Remove a digit evenly (dabs, fade, dissolve) or draw its full
+    outline first, then fill.
+  - Digits made of a medium's motifs still read as a bold display typeface
+    with texture: draw the letterforms in the medium's own geometry
+    (stepped diagonals, cut curves, stitch runs), not a font with a skin.
+  - Hero objects shaped as numerals tended to read as decorated numerals
+    (a shield 0, a croissant 3): if the object is the point, give it its
+    defining parts big enough to read at --scale 4.
+- Round 6 (8 flat faces with effects) all passed; the fixes I sent back:
+  - A hero drawn with 1-px detail inside a 3-px-unit medium (a peacock in
+    a tesserae mosaic) read as a blob and a bar: draw heroes in the
+    medium's own unit, with their defining silhouette big.
+  - A digit being built from dots read as "?" (a dotted 7 at :00.6):
+    check dense sheets of every build for partials that read as glyphs.
+  - One face's worst frame and RAM were far over budget (per-pixel tables
+    redrawn every frame): measure the real worst frame and the RAM peak.
+- Round 7 (4 one-hue faces) all passed; the fixes I sent back:
+  - A dissolve whose cloud stayed inside the digit's box filled the open
+    sides: "23" read "28". Removal must thin the digit or throw its
+    material away from it, never close its open sides.
+  - A digit cut stroke by stroke read as another number ("21" while the 0
+    was half cut). Reveal the whole outline evenly first, then fill.
+  - One tool working the digits in turn left the second blank ~1.5 s:
+    work changing digits concurrently.
+  - All four still read at rest as HH then MM left to right. Push harder
+    on a composition where the time sits inside the world's arrangement.
+- Particles: if the time is carried by many moving things (birds, grains,
+  sparks), give each a home position precomputed per minute and derive its
+  motion in closed form from time and its index (kit.noise, kit.sin), so
+  any frame can be built cold; keep counts so the esp32c3 estimate holds.
+- Keep sim/designs/moire.js importable at all times: every tool loads
+  index.js, which imports every design, so a half-written file breaks
+  the other agents' renders too. Make each edit leave the file valid. If
+  your renders fail because another design is mid-edit, wait a minute
+  and retry; don't touch their file.
+
+THE OWNER'S TASTE
+- On this panel: xray most, then escher, illuminated, lascaux, all flat 2D
+  with life on top; this round they want strict 1-bit, two colours, and
+  rich, fluent motion (see THIS ROUND above). 3D shading and rounded
+  volumes on this low resolution did not land; completely plain flat is
+  too boring.
+- On sibling skills: smooth, physical, fancy transitions (scope, radar,
+  sand); numberfolk (digits as cute characters); urwerk and ressence ("not
+  digits anymore"); playful character and game designs.
+- Disliked: ordinary or kit fonts; four big digits with decoration; static
+  between turns; abrupt transitions; elements that don't belong to one
+  world; "good parts but no wow moment".
+- They accept reduced legibility for real artistry, but the time must
+  still be readable.
+
+Work alone: don't spawn subagents. Be economical: read files in focused
+slices, keep tool output short (pipe big outputs through head/tail), look
+at renders instead of dumping numbers, and don't re-read files you already
+have. Three other agents are building other faces in parallel on this
+machine, so:
+- only ever write sim/designs/moire*.js and out/moire*
+- render sequentially, and keep GIFs to the settings above
+- don't run tools/serve.mjs

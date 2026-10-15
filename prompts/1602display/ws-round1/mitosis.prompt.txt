@@ -1,0 +1,109 @@
+Design ONE clock face for shaped WS2812 RGB LED boards with the ws2812-clock
+skill (.claude/skills/ws2812-clock): layout 'hex-pair', two hexagons side by side (662),
+149 x 86 mm, 662 LEDs, supply 3 A.
+
+First read SKILL.md, references/panels.md and references/hardware.md.
+Then read sim/designs/hive.js and neon.js for the API. They show the
+mechanics; they are not the creative bar.
+Then run `node tools/info.mjs --layout hex-pair` and
+`node tools/render.mjs chain --layout hex-pair --room lit --out out/mitosis-boards.png`
+to see the boards.
+
+Edit only sim/designs/mitosis.js. It is already registered as a placeholder;
+give it a real name and blurb, and keep layouts: ['hex-pair'] first. Don't
+touch other designs, index.js, sim/js/ or tools/; put any helpers in your own
+file. If you find a bug in the shared tools, report it, don't fix it.
+
+Starting idea (push past it, or replace it if you find something stronger):
+Mitosis. Two hexagons are two fields of view under a fluorescence microscope (DAPI-blue nuclei, GFP-green microtubules, red actin). In each lives a cell whose chromosomes condense into the shape of the digits: hours in the left cell, minutes in the right. Cytoplasm streams, vesicles drift. Minute turn: the cell goes through mitosis; the nuclear envelope dissolves, the spindle forms, chromatids are pulled apart, the cell pinches in two, and the daughter nucleus carries the new digits. Hour: both cells divide in sync and the fields fill with cells before clearing. Scientific beauty.
+
+GOAL: a stranger looks at it and says "wait, that's a clock?" Creativity comes
+first. A competent, pretty, conventional face is a fail.
+
+REQUIREMENTS
+1. Concept: the time is expressed by the theme's own mechanism. Test: if
+   swapping your digits for a plain bitmap font still works, the digits are
+   not part of the idea yet.
+2. Letterforms: draw your own, made of or carried by the theme's material,
+   and designed for THIS lattice. Kit fonts (STROKE, COMB, SQ3X5) are not
+   allowed for the time, not even as a skeleton with texture painted on.
+   Design all ten digits as a set.
+3. Use the shape. The outline, the lattice (triangular / square / rhombic),
+   the hexagon's rings and the seams between boards are material for the
+   idea; a face that would look the same on a rectangle has missed the
+   point. Never the default of four equal digits in a row with decoration
+   around them.
+4. Always alive: smooth 60 fps motion that belongs to the theme, every
+   second, not only at the turn. Positions glide between LEDs (kit.splat,
+   distance fields), they don't hop.
+5. Minute turn: the old digit physically becomes the new one through the
+   theme's process, 0.8-3 s, eased, no pops or cuts. The time is never
+   wrong mid-transition (empty or half-drawn is fine; a different number is
+   not). The hour gets a bigger, distinct show, and the time stays readable
+   through it (blank for more than ~1 s is a fail).
+6. Colour: design a palette for the theme, not rainbow-everything. Light
+   adds. Black is free and makes light glow. Below ~8/255 colours step and
+   shift hue, so keep dark tones deliberate; use dither: true for slow dim
+   fades.
+7. Power: check.mjs must PASS the 3 A supply all day. Budget the
+   light: dark grounds, lit strokes, saturated colours.
+8. Look: choose bare, smoke or opal (+ gap) deliberately for the idea, and
+   say why.
+9. Real size: the LEDs are 4 mm apart and the whole face is 149 x 86
+   mm, seen from 1-2 m. Judge legibility at --scale 3 (about true size on a
+   monitor) as well as zoomed.
+10. Technical:
+    - frame() is a pure function of time: closed form, or deterministic
+      caches keyed by the minute.
+    - If you must simulate, warmup <= 2 s.
+    - Dim with ctx.night.
+    - `node tools/check.mjs --design mitosis` has no FAIL.
+    - frame() mean under ~1 ms in Node.
+    - No hidden extra features.
+
+PROCESS
+1. Pitch three very different concepts for this layout. Pick the strongest,
+   judging harshly.
+2. Digits first. Render every digit in every slot:
+   node tools/render.mjs mitosis --clocks 00:00:30,11:11:30,22:22:30,03:33:30,04:44:30,05:55:30,16:06:30,17:17:30,18:18:30,19:39:30 --out out/mitosis-digits.png
+   Iterate until each digit is beautiful and unmistakable.
+3. Build, then render these, and look at every image:
+   - out/mitosis.png
+   - out/mitosis-turn.png: --clock 10:09:58 --frames 9 --duration 6 --sheet
+   - out/mitosis-hour.png: the same at --clock 10:59:58, and once at 23:59:58
+   - out/mitosis.gif: --clock 10:09:57 --frames 250 --duration 10 --gif --scale 5
+   - out/mitosis-hour.gif
+4. Critique it in the owner's voice. Is the font, layout, motion or
+   transition ordinary? Is there a wow moment? Fix the weakest part and
+   re-render. At least two rounds.
+5. Report:
+   - the idea in one sentence
+   - the look chosen and why
+   - render paths
+   - the check.mjs result
+   - the honest weakest point
+
+THE OWNER'S TASTE (from ~90 faces they rated on the sibling OLED and 1602 skills)
+- Loved:
+  - scope, radar, sand: extraordinarily smooth, physical, fancy transitions
+  - cube: 3D, constant dynamic
+  - numberfolk: digits as cute characters
+  - nixie
+  - urwerk and ressence: "not digits anymore"
+  - playful character and game designs (their avatar is a rainbow frog in
+    round glasses)
+- Disliked:
+  - ordinary or kit fonts
+  - four big digits with decoration
+  - static between turns
+  - abrupt transitions
+  - elements that don't belong to one world
+  - "good parts but no wow moment"
+- They accept reduced legibility for real artistry, but the time must still
+  be readable.
+
+Work alone: don't spawn subagents. About 15 other agents are building other
+faces in parallel on this machine, so:
+- only ever write sim/designs/mitosis.js and out/mitosis*
+- render sequentially
+- don't run tools/livecheck.mjs or tools/serve.mjs

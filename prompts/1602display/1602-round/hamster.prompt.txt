@@ -1,0 +1,64 @@
+Design ONE clock face for a 16x2 HD44780 character LCD (a "1602") with the
+1602-clock skill (.claude/skills/1602-clock). Read SKILL.md,
+references/gotchas.md and references/design-guide.md first, and skim
+references/worked-examples.md. Edit only sim/designs/hamster.js (already
+registered as a placeholder; give it a real name and blurb). Don't touch other
+designs, index.js or sim/js/. Always pass --out with a path starting
+out/hamster when rendering, and don't render other designs. Work alone: don't
+spawn subagents. Other agents are building other faces on this machine.
+
+Starting idea (push past it, or replace it if you find something stronger):
+A hamster runs in a wheel that powers the clock: its running is the seconds and it pedals the digits round like a counter. At :00 it puts on a sprint; on the hour it falls off exhausted, eats a seed and climbs back in.
+
+GOAL: a stranger looks at this little green or blue strip and says "wait,
+that's a clock?" Creativity comes first. A competent, conventional face is a
+fail. This owner loves playful, character-driven, game-like faces (Pac-Man,
+Pong, invaders, cuckoo went down well) and smooth, physical transitions, and
+dislikes ordinary fonts, ordinary layouts and faces that sit still.
+
+THE HARDWARE IS THE CANVAS. Eight CGRAM tiles at once, 5x8 dots each, a
+glass that takes 150-200 ms to switch, gaps between cells, ROM characters
+for free. Great 1602 faces turn those limits into the idea: the seams become
+the cracks between bricks, the slow glass becomes a glow or a ghost, ROM
+characters become props and scenery.
+
+REQUIREMENTS
+1. Concept: the time is expressed by the theme's own mechanism. Test: if
+   swapping your digits for the plain ROM digits still works, the digits are
+   not part of the idea yet.
+2. Letterforms: don't use the one-dot-thin ROM digits for the main time. Draw
+   a face that belongs to the theme (a kit of cell-aligned parts, custom
+   tiles, or the time made of the world's objects). Any small labels use ROM
+   only if it fits the look.
+3. Layout: not a centred HH:MM line. Use all 32 cells as a stage, and use
+   both rows. Hours and minutes may be different systems.
+4. Always alive: something moves, at a pace the glass can show, every second,
+   not only at the turn.
+5. Minute turn: the old time physically becomes the new one through the
+   theme's process, with every visible step at least ~150 ms. It must read
+   mid-transition and never show a wrong time. The hour gets a bigger,
+   distinct show.
+6. Characters, if any, are carefully hand-drawn 5x8 tiles with personality
+   (anticipation, reactions, idle fidgets) and they act on the time.
+7. Technical: frame() is a pure function of time; `node tools/tile-budget.mjs
+   --design hamster` passes (never more than 8 tiles, no trap #1); frame cost
+   fits the declared bus (default i2c100); fps no higher than the glass can
+   use (~10-12). Legible at 1:1. No hidden extra features.
+
+PROCESS
+1. Pitch three very different concepts, none a reskin of an existing design
+   (`node tools/render.mjs --list`). For each, count the tiles it needs at the
+   worst minute of the day before choosing. Pick the strongest, judging
+   harshly.
+2. Glyphs first: draw the digits and characters, render them, and iterate
+   until each reads at 1:1 and looks designed.
+3. Build, then render with the LC lag on:
+   out/hamster.png (--scale 14 --crop view --style clean),
+   out/hamster-hero.png (--style photo --crop body),
+   out/hamster-turn.png (--sheet across 10:09:59),
+   out/hamster-hour.png (--sheet across 10:59:58),
+   out/hamster.gif (a minute turn) and out/hamster-hour.gif. Look at every image.
+4. Ask: is the font, layout, motion or transition ordinary? Is it charming
+   and surprising? Fix the weakest part and re-render. At least two rounds.
+5. Report: the idea in one sentence, render paths, the tile-budget result
+   (worst slot count, worst frame cost), and the honest weakest point.

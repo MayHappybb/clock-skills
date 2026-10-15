@@ -1,0 +1,1 @@
+Make 4 clock faces with the tft-clock skill. Pick surprising themes where the numerals ARE the theme's characters or material. The digits themselves are alive every second, on a beat, not only at the turn. Minute and hour transitions are smooth and happen through the theme's own action. Each face gets its own font, drawn for its theme. The time must read correctly in every frame.

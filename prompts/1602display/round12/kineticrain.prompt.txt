@@ -1,0 +1,69 @@
+Design ONE clock face for a monochrome 096-128x64 OLED with the oled-clock skill
+(.claude/skills/oled-clock). Read SKILL.md and references/gotchas.md first.
+Edit only sim/designs/kineticrain.js (already registered as a placeholder; give it a
+real name and blurb). Don't touch other designs, index.js or sim/js/, and don't
+render other designs.
+
+Starting idea (push past it, or replace it if you find something stronger):
+Kinetic Rain (the Changi airport sculpture): a grid of hundreds of polished droplets hanging on wires from the ceiling, seen in real 3D perspective from below-front, each droplet rising and falling on its own wire. Their heights form a living 3D relief, a rolling wave by default, that resolves into the numerals as raised (or lowered) regions, so the time is a sculpture of the whole field. The camera drifts slowly round the field so the depth is always felt; droplets catch a glint as they pass a height. On the minute a wave rolls across the field, dissolving the old digit and lifting the new one out of it. On the hour the whole field performs a big choreography (spiral, ripple from the centre, a twist) before settling into the new hour.
+
+GOAL: a stranger looks at it and says "wait, that's a clock?" Creativity comes
+first. A competent, pretty, conventional face is a fail. The bar to beat is
+scope, cube, numberfolk, nixie and urwerk.
+
+REQUIREMENTS
+1. Concept: the time is expressed by the theme's own mechanism. Test: if
+   swapping your digits for a plain bitmap font still works, the digits are not
+   part of the idea yet.
+2. Letterforms: draw your own, made of or carried by the theme's material. No
+   kit fonts (font5x7, font3x5, strokeDigit, segDigit, dotText) for the time.
+   Design all ten digits as a set. Any date or label speaks the same visual
+   language, or leave it out.
+3. Layout: never four digits in a row, with or without decoration around
+   them; that is the default every weak face falls back to. Use a scene,
+   depth, a dial, a mechanism, hours and minutes as different systems.
+4. Always alive: smooth 60 fps sub-pixel motion that belongs to the theme,
+   every second, not only at the turn.
+5. Minute turn: the old digit physically becomes the new one through the
+   theme's process, 0.8-3 s, eased, no pops or cuts. Never show a wrong time.
+   The hour gets a bigger, distinct show.
+6. Composition: one hero, one or two supporting elements, a designed
+   background, plenty of black. It must read at 1x: no tiny glyphs, no noise
+   as texture. Every element belongs to the same world.
+7. Characters, if any, are carefully hand-drawn (sprites beat formulas at this
+   size) and interact with the time.
+8. Technical: frame() is a pure function of time; `node tools/check.mjs
+   --design kineticrain` passes; frame() under ~2 ms. No hidden extra features.
+
+PROCESS
+1. Pitch three very different concepts, none like an existing design
+   (`node tools/render.mjs --list`). Pick the strongest, judging harshly.
+2. Digits first: render out/kineticrain-digits.png and iterate until every digit is
+   beautiful on its own.
+3. Build, then render out/kineticrain.png, out/kineticrain-turn.png (--sheet across
+   10:09:58), out/kineticrain-hour.png (--sheet across 10:59:58), out/kineticrain.gif and
+   out/kineticrain-hour.gif. Look at every image.
+4. Ask: is the font, layout, motion or transition ordinary? Is it fascinating?
+   Fix the weakest part and re-render. At least two rounds.
+5. Report: the idea in one sentence, render paths, the check.mjs result, and
+   the honest weakest point.
+
+THIS ROUND, the owner asked specifically for:
+- Real 3D. Their favourite 3D face is `cube` (read sim/designs/cube.js and
+  render it to see why): geometry transformed in 3D every frame, perspective
+  projection, faces/surfaces shaded by how they face a light (dither),
+  correct occlusion, and something always swaying, bobbing or turning so the
+  depth is felt constantly. A flat drawing with a drop shadow is not 3D.
+- "So dynamic and vivacious": lots of lively, physical motion all the time
+  (springs, overshoot, squash and stretch, bounce, sway), not only at turns.
+- Smooth, themed transitions; a dynamic time display between turns.
+- Never use an original/kit digit font, not even as a skeleton with texture:
+  the letterform is designed for the theme and the 3D form.
+Lessons from the previous rounds: textured plain letterforms are not enough;
+no speckle (scattered single pixels) as shading or texture, which reads as
+noise at 1x; the hour show must keep the time readable (blank for more than
+~1 s is a fail); keep frame() under ~2 ms even with 3D.
+
+Work alone: don't spawn subagents. Other agents are building other faces in
+parallel on this machine, so only ever write to your own files and out/kineticrain*.
+Render sequentially (parallel render.mjs runs from one agent collide).

@@ -1,0 +1,53 @@
+Design ONE clock face for a monochrome 128x64 (0.96") OLED with the oled-clock skill
+(.claude/skills/oled-clock). Read SKILL.md and references/gotchas.md first.
+Edit only sim/designs/etchasketch.js (already registered as a placeholder; give it a
+real name and blurb). Don't touch other designs, index.js or sim/js/, and don't
+render other designs.
+
+Starting idea (push past it, or replace it if you find something stronger):
+An Etch A Sketch: two knobs drive a stylus that draws the time as one continuous line. On the minute the toy is shaken, the line crumbles away as aluminium powder, and the knobs redraw.
+
+GOAL: a stranger looks at it and says "wait, that's a clock?" Creativity comes
+first. A competent, pretty, conventional face is a fail. The bar to beat is
+scope, cube, numberfolk, nixie and urwerk.
+
+REQUIREMENTS
+1. Concept: the time is expressed by the theme's own mechanism. Test: if
+   swapping your digits for a plain bitmap font still works, the digits are not
+   part of the idea yet.
+2. Letterforms: draw your own, made of or carried by the theme's material. No
+   kit fonts (font5x7, font3x5, strokeDigit, segDigit, dotText) for the time.
+   Design all ten digits as a set. Any date or label speaks the same visual
+   language, or leave it out.
+3. Layout: never four digits in a row, with or without decoration around
+   them; that is the default every weak face falls back to. Use a scene,
+   depth, a dial, a mechanism, hours and minutes as different systems.
+4. Always alive: smooth 60 fps sub-pixel motion that belongs to the theme,
+   every second, not only at the turn.
+5. Minute turn: the old digit physically becomes the new one through the
+   theme's process, 0.8-3 s, eased, no pops or cuts. Never show a wrong time.
+   The hour gets a bigger, distinct show.
+6. Composition: one hero, one or two supporting elements, a designed
+   background, plenty of black. It must read at 1x: no tiny glyphs, no noise
+   as texture. Every element belongs to the same world.
+7. Characters, if any, are carefully hand-drawn (sprites beat formulas at this
+   size) and interact with the time.
+8. Technical: frame() is a pure function of time; `node tools/check.mjs
+   --design etchasketch` passes; frame() under ~2 ms. No hidden extra features.
+
+PROCESS
+1. Pitch three very different concepts, none like an existing design
+   (`node tools/render.mjs --list`). Pick the strongest, judging harshly.
+2. Digits first: render out/etchasketch-digits.png and iterate until every digit is
+   beautiful on its own.
+3. Build, then render out/etchasketch.png, out/etchasketch-turn.png (--sheet across
+   10:09:58), out/etchasketch-hour.png (--sheet across 10:59:58), out/etchasketch.gif and
+   out/etchasketch-hour.gif. Look at every image.
+4. Ask: is the font, layout, motion or transition ordinary? Is it fascinating?
+   Fix the weakest part and re-render. At least two rounds.
+5. Report: the idea in one sentence, render paths, the check.mjs result, and
+   the honest weakest point.
+
+
+Work alone: don't spawn subagents. Other agents are building other faces in
+parallel on this machine, so only ever write to your own files and out/etchasketch*.

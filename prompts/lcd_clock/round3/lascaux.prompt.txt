@@ -1,0 +1,175 @@
+Design ONE clock face with the tft-clock skill, in
+/Users/bilibili/coding/lcd_clock/.claude/skills/tft-clock (run every command
+from that directory). Key: 'lascaux'.
+
+The display is the Luat Air101-LCD: a 0.96" IPS colour LCD, 160 x 80 pixels
+(21.7 x 10.8 mm), RGB565, ST7735S on SPI, white LED backlight. It is a real
+colour pixel canvas: scenes, characters, real typography, light, 3D are all
+possible. The owner asked for "all your creativity": an interesting theme,
+fluent and smooth motion (both the constant life and the transitions), and
+interesting fonts that suit the theme. And 60 fps: they want the high
+refresh rate because it looks smoother.
+
+First read SKILL.md, then sim/js/gfx.js and sim/js/kit.js for the API, and
+sim/designs/koi.js and sim/designs/mischief.js for worked examples. Look at
+out/gallery.png and out/gallery-round1.png: the eight faces already made for
+this panel (harbour, koi, mischief, chameleon; shanshui, jelly, mitosis,
+vector). Four more are being built right now (xray: baggage X-ray; synchro:
+synchronised swimmers; pcb: copper-trace digits; mochi: moon rabbits).
+Don't repeat any of these themes. sim/designs/vector-beam.js and
+sim/designs/shanshui.js show how round 1 kept a busy 60 fps face cheap.
+They show the mechanics; they are not the creative bar.
+
+Edit only sim/designs/lascaux.js. It is already registered as a placeholder;
+give it a real name and blurb and keep fps: 60. Don't touch other designs,
+index.js, sim/js/ or tools/; put any helpers in your own file
+(sim/designs/lascaux-*.js). If you find a bug in the shared tools, report it,
+don't fix it.
+
+Starting idea (push past it, or replace it if you find something stronger,
+but stay in its world):
+The painted cave. A rock wall deep in a cave lit by a moving torch: uneven stone with bumps and cracks that the light rakes across, ochre, charcoal and red-iron paints, handprint stencils. The numerals are painted animals (aurochs, horses, deer, ibex, mammoths, bison) drawn in the Lascaux style whose bodies, horns, legs and backs form each digit; design all ten so the animal is clear AND the digit reads (e.g. a bison curled as 0, a horse rearing as 7). Always alive at 60 fps: the torch flickers and the light pool drifts, so the painted animals seem to move (the real effect at Lascaux), dust in the beam, a smoke curl. Minute turn: a painter's hand blows pigment through a reed to stencil and paint the new animal stroke by stroke after the old one fades into the rock in the dark; the time is never wrong. Hour: a bigger show, e.g. the herd runs along the wall in flickering firelight then settles into the new hour. Earthy palette of real pigments; the dark must be warm rock, not black.
+
+GOAL: a stranger looks at it and says "wait, that's a clock?" Creativity
+comes first. A competent, pretty, conventional face is a fail.
+
+REQUIREMENTS
+1. Concept: the time is expressed by the theme's own mechanism. Test: if
+   swapping your digits for a plain font still works, the digits are not
+   part of the idea yet.
+2. Letterforms: if the time is shown as digits (it doesn't have to be),
+   draw your own, made of or carried by the theme's material, designed for
+   this pixel grid. The kit's fonts (strokeDigit, segDigit, dotText, 3x5,
+   5x7) are not allowed for the time, not even as a skeleton with texture
+   painted on. Design all ten digits as a set and make them beautiful at
+   this resolution (hard pixels or AA, chosen per element, on purpose).
+   Small secondary type (a date, a label), if any, must be in the same
+   world's style too.
+3. Use the canvas: a 2:1 strip, full colour, the backlight. Never the
+   default of four equal digits in a row with decoration around them.
+4. Always alive at 60 fps: smooth motion that belongs to the theme, every
+   second, not only at the turn. Positions glide by fractions of a pixel
+   (AA), they don't hop. Motion of ~0.3-2 px per frame reads smooth on this
+   glass; the crystal's ~15 ms response is about one 60 fps frame, so fast
+   high-contrast motion smears (renders show it; that is the real look).
+5. Minute turn: the old digit physically becomes the new one through the
+   theme's process, 0.8-3 s, eased, no pops or cuts. The time is never wrong
+   mid-transition (empty or half-drawn is fine; a different number is not).
+   The hour gets a bigger, distinct show, and the time stays readable
+   through it (blank for more than ~1 s is a fail).
+6. Colour: design a palette for the theme, say why in the header comment.
+   RGB565 bands gradients unless dithered. It is an LCD: black is a dark
+   grey that glows a little, so a mostly black face looks like a weak OLED;
+   if your world is dark, make the dark itself deliberate (deep coloured
+   darks, vignettes, glow). Dim with ctx.night through ctx.lcd.backlight,
+   and check the face still reads at night.
+7. 60 fps on a small MCU: fps: 60 means a 16.7 ms budget. Keep the rough C
+   estimate for esp32c3 (no FPU, the weakest profile) at most ~14 ms in the
+   worst frame of check.mjs, and the mean well under. Per-pixel callbacks
+   (paint, fillWhere, fillSDF) over big areas are what blow it: precompute
+   sprites, masks or distance fields per minute and look them up; use
+   g.coarse for soft fields; kit.sin/cos, not Math.sin, in hot loops. No
+   per-pixel allocation or closures in hot loops; keep hot objects
+   monomorphic. Check tearing for fast horizontal motion of tall shapes
+   (render --tear); driver: 'dirty' is an option if little changes.
+8. Real size: the whole face is 21.7 x 10.8 mm seen from arm's length.
+   Detail finer than ~2 px vanishes. Judge legibility at --scale 4 (about
+   true size) as well as zoomed.
+9. Technical:
+   - frame() is a pure function of time: closed form, or deterministic
+     caches keyed by the minute. If you must simulate, simulate from the
+     start of the current minute inside frame, warmup <= 2 s of work.
+   - `node tools/check.mjs --design lascaux` passes (it takes ~40 s at 60 fps).
+   - Work done outside the main canvas (a once-a-minute redraw into your
+     own buffer) is invisible to the estimate: keep it small, or spread it
+     over several frames, and state its rough cost in the report.
+   - The kit's colour helpers (mix, dither565, ...) are billed as Math
+     calls per use; in per-pixel loops use your own integer arithmetic.
+   - Flash: precomputed tables and sprites should total <= ~256 KB on the
+     device (RGB565 = 2 bytes a pixel); state the total in the report.
+   - No hidden extra features.
+
+PROCESS
+1. Pitch three very different concepts in your theme's world. Pick the
+   strongest, judging harshly.
+2. Digits first. Render every digit in every slot:
+   node tools/render.mjs lascaux --clocks 00:00:30,11:11:30,22:22:30,03:33:30,04:44:30,05:55:30,16:06:30,17:17:30,18:18:30,19:39:30 --px 3 --cols 2 --out out/lascaux-digits.png
+   Iterate until each digit is beautiful and unmistakable.
+3. Build, then render these, and look at every image:
+   - out/lascaux.png (and --scale 4 --out out/lascaux-true.png)
+   - out/lascaux-turn.png: --clock 10:09:58 --frames 12 --duration 4 --sheet --px 3 --cols 3
+   - out/lascaux-hour.png: the same at --clock 10:59:58, and once at 23:59:58
+   - out/lascaux-day.png: --clocks 02:47:30,07:15:30,12:00:30,18:05:30 --px 3
+   - out/lascaux.gif: --clock 10:09:57 --frames 150 --duration 3 --gif --px 4
+     (50 fps is the GIF limit), and out/lascaux-hour.gif at 10:59:57
+   Contact sheets hide pops: also render a dense sheet (--frames 25) of each
+   transition before calling it smooth.
+4. Critique it in the owner's voice. Is the font, layout, motion or
+   transition ordinary? Is there a wow moment? Fix the weakest part and
+   re-render. At least two rounds.
+5. Report:
+   - the idea in one sentence
+   - render paths
+   - the check.mjs result (incl. esp32c3 max/mean estimate)
+   - the honest weakest point
+
+LESSONS FROM ~120 FACES ON SIBLING SKILLS (1602, OLED, LED matrices)
+- The most common weakness: at rest the face still reads as four plain
+  digits with a themed background, and the wow lives only in the turns.
+  Make the time at rest belong to the theme too: carried by objects,
+  characters, light or material, or by a non-digit system (dials, counts,
+  positions) that still reads clearly.
+- The strongest stills put the time on a big, bold physical object of the
+  theme (wagon cargo, wax candles, mahjong tiles, leather puppets) with the
+  world alive around it.
+- Characters below ~12 px read as blobs: draw heroes bold and simple
+  (outlined, a few flat colours, clear eyes) and check them at --scale 4.
+- Anything else that looks like a time, or any numeral-sized ring or stroke
+  beside the digits, competes with the time: keep it clearly secondary.
+- Background made of the same stuff as the digits competes with them: keep
+  the ground quieter, give numerals a keyline or a contrast moat, one hue
+  family for the time.
+- Fixes needed in past rounds, check yours for the same: a limb resting
+  over a digit made 0 read as 6; a night state made the hours vanish; a
+  bright noon washed the digits out; 4 read as U; 9 read as 'a' in a squat
+  slot; an effect that changes over the minute closed a counter late in
+  the minute (check stills at :05, :30 and :55); an hour show ran digits
+  backwards and showed a wrong number for half a second (check dense
+  sheets across the hour).
+- Don't add the owner's avatar or any recurring mascot. Characters, if any,
+  belong to the theme.
+- Round 1 on this panel (shanshui, jelly, mitosis, vector) all passed, and
+  these are the fixes I still had to send back. Check yours for the same:
+  - All four still read, at rest, as HH then MM left to right (staggered
+    depth and size helped, but the wow lived in the turns). Push harder on
+    a composition where the time sits inside the world's own arrangement.
+  - The transition's agent must belong to the world's style: a fluffy
+    white cartoon cumulus in an ink-painted scroll looked pasted on.
+  - Hero objects must be recognisable at --scale 4 by a stranger: the
+    dragon read as an eel, diatoms as pills, a copper jelly mould as matte
+    organ pipes. Give each its defining silhouette parts and material
+    (horns and claws; ribs; a polished specular streak).
+  - Two of four failed at night: muddy colours on near-black, or the far
+    digits vanishing. Design the night palette on purpose, and render
+    02:47:30 at --scale 4 with night dimming.
+  - When all four digits change at midnight, keep any blank under ~1 s.
+
+THE OWNER'S TASTE
+- Loved: scope, radar, sand (extraordinarily smooth, physical, fancy
+  transitions); cube (3D, constant dynamic); numberfolk (digits as cute
+  characters); nixie; urwerk and ressence ("not digits anymore"); playful
+  character and game designs.
+- Disliked: ordinary or kit fonts; four big digits with decoration; static
+  between turns; abrupt transitions; elements that don't belong to one
+  world; "good parts but no wow moment".
+- They accept reduced legibility for real artistry, but the time must
+  still be readable.
+
+Work alone: don't spawn subagents. Be economical: read files in focused
+slices, keep tool output short (pipe big outputs through head/tail), look
+at renders instead of dumping numbers, and don't re-read files you already
+have. About eleven other agents are building other faces in parallel on this
+machine, so:
+- only ever write sim/designs/lascaux*.js and out/lascaux*
+- render sequentially, and keep GIFs to the settings above
+- don't run tools/serve.mjs

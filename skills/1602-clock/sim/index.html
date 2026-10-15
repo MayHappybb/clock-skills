@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>1602 simulator</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; min-height: 100vh; background: #101014; color: #d8d8e0;
+    font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 28px 16px 60px;
+  }
+  h1 { font-size: 15px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #8b8b9a; margin: 0; }
+  canvas { display: block; image-rendering: auto; box-shadow: 0 18px 50px rgba(0,0,0,.6); border-radius: 4px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; max-width: 900px; }
+  select, button, input { background: #1c1c22; color: #d8d8e0; border: 1px solid #33333d; border-radius: 5px; padding: 6px 10px; font: inherit; }
+  button { cursor: pointer; }
+  button:hover { background: #26262e; }
+  .meta { max-width: 720px; text-align: center; color: #7d7d8c; font-size: 12.5px; }
+  .meta b { color: #b9b9c6; font-weight: 600; }
+  /* Capture mode: nothing on screen but the panel, so a headless screenshot of
+     the viewport is exactly the canvas. */
+  body.capture { display: block; padding: 0; min-height: 0; background: #0b0b0e; }
+  body.capture h1, body.capture .bar, body.capture .meta { display: none; }
+  /* Pinned, because headless Chrome enforces a minimum window size and would
+     otherwise lay a small canvas out somewhere inside a larger viewport. */
+  body.capture canvas { position: fixed; left: 0; top: 0; box-shadow: none; border-radius: 0; }
+  .verdict { padding: 2px 8px; border-radius: 999px; font-size: 11.5px; }
+  .comfortable { background: #14401f; color: #64d98a; }
+  .workable    { background: #14401f; color: #64d98a; }
+  .sluggish    { background: #4a3a10; color: #e8c463; }
+  .too-slow    { background: #4a1616; color: #ef8080; }
+</style>
+</head>
+<body>
+  <h1>1602 / HD44780 simulator</h1>
+  <canvas id="screen"></canvas>
+  <div class="bar" id="bar"></div>
+  <div class="meta" id="meta"></div>
+
+<script type="module">
+import { renderToCanvas, buildFrame, paint, relax, DESIGNS } from './js/player.js';
+import { dotStates, RESPONSE } from './js/panel.js';
+import { BUSES } from './js/hd44780.js';
+
+const q = new URLSearchParams(location.search);
+const canvas = document.getElementById('screen');
+const capture = q.has('capture');
+if (capture) document.body.classList.add('capture');
+
+// Params mirror tools/render.mjs so a screenshot and the live page agree.
+const params = {
+  design: q.get('design') ?? 'tide',
+  t: Number(q.get('t') ?? 0),
+  clock: q.get('clock') ?? (capture ? '10:09:30' : 'now'),
+  preset: q.get('preset') ?? undefined,
+  scale: Number(q.get('scale') ?? 14),
+  style: q.get('style') ?? 'photo',
+  crop: q.get('crop') ?? 'body',
+  bus: q.get('bus') ?? undefined,
+  response: q.get('response') ?? 'typ',
+};
+
+/** Show the report for the frame just built. */
+function describe(report, design) {
+  const busLabel = BUSES[params.bus ?? design.bus ?? 'i2c100'].label;
+  document.getElementById('meta').innerHTML =
+    `<b>${design.name}</b> — ${design.blurb}<br>` +
+    `frame cost ${(report.totalUs / 1000).toFixed(2)} ms on ${busLabel} → ` +
+    `bus allows <b>${report.fps === Infinity ? '∞' : report.fps.toFixed(1)} fps</b>, design runs at <b>${design.fps ?? 30}</b> ` +
+    (report.fps >= (design.fps ?? 30)
+      ? `<span class="verdict comfortable">fits</span><br>`
+      : `<span class="verdict too-slow">bus too slow</span><br>`) +
+    `${report.bytes} bus bytes, ${report.ops} operations per frame` +
+    (report.hazards.length ? `<br><span class="verdict too-slow">CGRAM slot ${report.hazards.join(', ')} rewritten after a cell using it was drawn</span>` : '');
+}
+
+function fail(err) {
+  document.getElementById('meta').textContent = String(err?.stack ?? err);
+  window.__error = String(err);
+}
+
+// ---- still: what tools/render.mjs captures -----------------------------------
+if (capture) {
+  try {
+    const { report, design } = renderToCanvas(canvas, params.design, params);
+    describe(report, design);
+  } catch (err) { fail(err); }
+  requestAnimationFrame(() => requestAnimationFrame(() => { window.__ready = true; document.title = 'ready'; }));
+}
+
+// ---- live: real time, as the module would run --------------------------------
+//
+// The design is asked for a frame at its own frame rate, exactly as firmware
+// would send one. Between those, the glass is relaxed towards the last frame
+// sent with the liquid crystal's real time constant, every display refresh.
+// So what you see is what the module shows, lag and all, at wall-clock speed.
+
+const live = {
+  offsetMs: 0,           // displayed time = now + offset
+  paused: false,
+  t0: performance.now(), // animation time origin
+  lastK: null, lastNow: 0,
+  lcd: null, target: null, levels: null,
+};
+
+/** Make the displayed clock read `hh:mm:ss` right now, then keep running. */
+function setClock(text) {
+  if (!text || text === 'now') { live.offsetMs = 0; return; }
+  const [h = 0, m = 0, s = 0] = text.split(':').map(Number);
+  const now = new Date(), want = new Date(now);
+  want.setHours(h, m, s, 0);
+  live.offsetMs = want - now;
+}
+
+function restart() { live.lastK = null; live.levels = null; }
+
+function tick(nowMs) {
+  requestAnimationFrame(tick);
+  if (live.paused) return;
+  const design = DESIGNS[params.design];
+  const fps = design.fps ?? 30;
+  // rAF timestamps can predate t0 on the first frame, so clamp.
+  const t = Math.max(0, (nowMs - live.t0) / 1000);
+  const k = Math.floor(t * fps);
+  const dt = Math.min(0.25, (nowMs - live.lastNow) / 1000);
+  live.lastNow = nowMs;
+
+  try {
+    if (k !== live.lastK) {
+      // A new frame goes out to the controller.
+      const date = new Date(Date.now() + live.offsetMs);
+      const out = buildFrame(params.design, { t: k / fps, date, bus: params.bus });
+      live.lcd = out.lcd;
+      live.target = dotStates(out.lcd);
+      if (!live.levels || live.levels.length !== live.target.length) live.levels = Float32Array.from(live.target);
+      live.lastK = k;
+      describe(out.report, design);
+      clockOut.textContent = date.toTimeString().slice(0, 8);
+    }
+    const tau = RESPONSE[params.response];
+    if (tau) relax(live.levels, live.target, dt, tau);
+    else live.levels.set(live.target);
+    paint(canvas, live.lcd, {
+      preset: params.preset ?? design.panel ?? 'green',
+      scale: params.scale, style: params.style, crop: params.crop, levels: live.levels, t,
+      rotate: design.rotate,
+    });
+  } catch (err) { fail(err); live.paused = true; }
+}
+
+// ---- controls ------------------------------------------------------------------
+const bar = document.getElementById('bar');
+const el = (tag, props = {}) => Object.assign(document.createElement(tag), props);
+const select = (pairs, value, onchange) => {
+  const s = el('select', { onchange: () => onchange(s.value) });
+  for (const [v, label] of pairs) s.append(new Option(label, v));
+  s.value = value;
+  return s;
+};
+/** Keep the address bar in step, so a reload or a shared link shows the same thing. */
+const remember = () => {
+  const u = new URLSearchParams();
+  for (const k of ['design', 'preset', 'bus', 'response', 'crop', 'style']) if (params[k]) u.set(k, params[k]);
+  history.replaceState(null, '', `?${u}`);
+};
+
+const presetSel = select(['green', 'blue', 'gray', 'amber'].map((p) => [p, p]), '', (v) => { params.preset = v; remember(); });
+const busSel = select(Object.entries(BUSES).map(([k, b]) => [k, b.label]), '', (v) => { params.bus = v; remember(); restart(); });
+const syncToDesign = () => {
+  const d = DESIGNS[params.design];
+  presetSel.value = params.preset ?? d.panel ?? 'green';
+  busSel.value = params.bus ?? d.bus ?? 'i2c100';
+};
+const designSel = select(Object.entries(DESIGNS).map(([k, d]) => [k, d.name]), params.design, (v) => {
+  params.design = v; params.preset = undefined; params.bus = undefined;
+  syncToDesign(); remember(); restart();
+});
+const responseSel = select([['typ', 'LC lag: typical'], ['max', 'LC lag: worst case'], ['off', 'LC lag: off']],
+  params.response, (v) => { params.response = v; remember(); });
+const cropSel = select([['body', 'whole module'], ['view', 'glass only']], params.crop, (v) => { params.crop = v; remember(); });
+
+const clockOut = el('b', { title: 'time shown on the display' });
+const clockInput = el('input', { type: 'text', size: 8, placeholder: 'hh:mm:ss', title: 'set the displayed time, then it keeps running' });
+clockInput.onchange = () => { setClock(clockInput.value.trim()); clockInput.value = ''; restart(); };
+const nowBtn = el('button', { textContent: 'now', title: 'back to real time', onclick: () => { setClock('now'); restart(); } });
+const turnBtn = el('button', {
+  textContent: '⏭ minute turn', title: 'jump to 5 seconds before the next minute',
+  onclick: () => {
+    const d = new Date(Date.now() + live.offsetMs);
+    const target = new Date(d); target.setSeconds(55, 0);
+    if (target <= d) target.setMinutes(target.getMinutes() + 1);
+    live.offsetMs += target - d;
+    restart();
+  },
+});
+const pauseBtn = el('button', { textContent: '⏸ pause' });
+pauseBtn.onclick = () => {
+  live.paused = !live.paused;
+  pauseBtn.textContent = live.paused ? '▶ play' : '⏸ pause';
+  if (!live.paused) { live.lastNow = performance.now(); restart(); }
+};
+
+if (!capture) {
+  syncToDesign();
+  bar.append(designSel, presetSel, busSel, responseSel, cropSel, el('span', { textContent: '·' }),
+    clockOut, clockInput, nowBtn, turnBtn, pauseBtn);
+  setClock(params.clock);
+  live.lastNow = performance.now();
+  requestAnimationFrame(tick);
+}
+</script>
+</body>
+</html>

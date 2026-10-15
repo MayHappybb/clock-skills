@@ -1,0 +1,152 @@
+Design ONE clock face with the ws2812-clock skill (.claude/skills/ws2812-clock):
+layout 'hub-x3', three HUB75 panels side by side: 192x64 panorama, one lattice (12288), 384 x 128 mm, 12288 LEDs, supply 12 A.
+
+This round is for the HUB75 panel hub64, alone or assembled (read SKILL.md's
+"HUB75 panels" section and the hub64 parts of references/panels.md and
+references/hardware.md): a HUB75 RGB matrix, 64x64 pixels on 2 mm (128 mm
+square), black GOB LEDs. Panels butt with no seam, so an assembly is one
+bigger raster; non-rectangular assemblies have -1 in the raster where a
+panel is missing (nothing is drawn there). It is a real pixel canvas:
+scenes, characters with faces, real typography, 3D are all possible. The
+owner asked for "maximum creativity": interesting themes, amazing smooth and
+fluent motion (both the constant life and the transitions), and interesting
+fonts that fit the theme. Your assembly's size and SHAPE are part of the
+brief: design for them, not a 64x64 idea stretched.
+
+First read SKILL.md, then sim/js/kit.js (note kit.grid, kit.blitGrid,
+kit.bitmap for rasters) and sim/designs/neon.js for the API. Look at
+out/gallery-round3.png and out/gallery-round4.png to see the 22 faces
+already made for this panel; don't repeat them. They show the
+mechanics; they are not the creative bar.
+Then run `node tools/info.mjs --layout hub-x3` and
+`node tools/render.mjs chain --layout hub-x3 --room lit --out out/coaster-boards.png`
+to see the boards.
+
+Edit only sim/designs/coaster.js. It is already registered as a placeholder;
+give it a real name and blurb, and keep layouts: ['hub-x3'] first. Don't
+touch other designs, index.js, sim/js/ or tools/; put any helpers in your own
+file (sim/designs/coaster-*.js). If you find a bug in the shared tools,
+report it, don't fix it.
+
+Starting idea (push past it, or replace it if you find something stronger):
+Roller coaster. A 192x64 panorama of a funfair at dusk: the time IS the coaster track. Four digits drawn as one continuous steel track with a lattice of supports, with loops for 0, 6, 8 and 9, drops and camelbacks for the rest (design track letterforms). A train of cars (the owner's rainbow frog in round glasses in the front car, arms up) rides the whole track all the time with real physics: speed from energy conservation, slow on the crests, fast in the dips, cars banking and following the curve, a chain lift clanking it up. Fairground lights chase along the rails. Minute turn: the changing digit's track flexes like a spline into the new digit while the train waits on the lift hill (it never derails, and the track never reads as another number). Hour: a launch, the train screams through every loop with fireworks. A ride the owner would watch.
+
+GOAL: a stranger looks at it and says "wait, that's a clock?" Creativity comes
+first. A competent, pretty, conventional face is a fail.
+
+REQUIREMENTS
+1. Concept: the time is expressed by the theme's own mechanism. Test: if
+   swapping your digits for a plain bitmap font still works, the digits are
+   not part of the idea yet.
+2. Letterforms: if the time is shown as digits (it doesn't have to be), draw
+   your own, made of or carried by the theme's material, and designed for
+   THIS pixel grid. Kit fonts (STROKE, COMB, SQ3X5) and generic 3x5 / 5x7 /
+   8x8 pixel fonts are not allowed for the time, not even as a skeleton with
+   texture painted on. Design all ten digits as a set, and make them
+   beautiful at this resolution (anti-aliasing by coverage is available:
+   linear light in ctx.out).
+3. Use the board. On HUB75: the size of the canvas, its square shape (or
+   the assembly's shape), the black GOB face. On the 8x8 tiles: their
+   smallness, the seams between tiles, one MCU per tile. Never the default
+   of four equal digits in a row with decoration around them.
+4. Always alive: smooth 60 fps motion that belongs to the theme, every
+   second, not only at the turn. Positions glide between pixels (coverage,
+   sub-pixel rendering), they don't hop.
+5. Minute turn: the old digit physically becomes the new one through the
+   theme's process, 0.8-3 s, eased, no pops or cuts. The time is never
+   wrong mid-transition (empty or half-drawn is fine; a different number is
+   not). The hour gets a bigger, distinct show, and the time stays readable
+   through it (blank for more than ~1 s is a fail).
+6. Colour: design a palette for the theme, not rainbow-everything. Light
+   adds. Black is free and makes light glow. Below ~8/255 colours step and
+   shift hue, so keep dark tones deliberate; use dither: true for slow dim
+   fades. HUB75 panels are very bright indoors: brightness 0.25-0.5.
+7. Power and heat: check.mjs must have no FAIL on the 12 A supply all
+   day.
+8. Look: choose bare, smoke or opal (+ gap) deliberately and say why.
+   Smoked acrylic is the classic finish on HUB75 panels.
+9. Real size: the pixels are 2 mm apart and the whole face is 384 x 128
+   mm, seen from 1-2 m. Judge legibility at --scale 3 (about true size on a
+   monitor) as well as zoomed.
+10. Technical:
+    - frame() is a pure function of time: closed form, or deterministic
+      caches keyed by the minute. If you must simulate, warmup <= 2 s.
+    - Dim with ctx.night.
+    - `node tools/check.mjs --design coaster` has no FAIL.
+    - Speed: frame() mean under ~4 ms in Node for these 12288 pixels. Draw into typed arrays, no per-pixel allocation, no
+      per-pixel closures in hot loops. The live view must hold 60 fps.
+    - No hidden extra features.
+
+PROCESS
+1. Pitch three very different concepts for this layout. Pick the strongest,
+   judging harshly.
+2. Digits first. Render every digit in every slot:
+   node tools/render.mjs coaster --clocks 00:00:30,11:11:30,22:22:30,03:33:30,04:44:30,05:55:30,16:06:30,17:17:30,18:18:30,19:39:30 --out out/coaster-digits.png
+   Iterate until each digit is beautiful and unmistakable.
+3. Build, then render these, and look at every image:
+   - out/coaster.png
+   - out/coaster-turn.png: --clock 10:09:58 --frames 9 --duration 6 --sheet
+   - out/coaster-hour.png: the same at --clock 10:59:58, and once at 23:59:58
+   - out/coaster.gif: --clock 10:09:57 --frames 150 --duration 6 --gif --scale 2.5
+   - out/coaster-hour.gif (same settings at 10:59:57)
+4. Critique it in the owner's voice. Is the font, layout, motion or
+   transition ordinary? Is there a wow moment? Fix the weakest part and
+   re-render. At least two rounds.
+5. Report:
+   - the idea in one sentence
+   - the look chosen and why
+   - render paths
+   - the check.mjs result
+   - the honest weakest point
+
+LESSONS FROM ROUNDS 1-4 (53 faces; the owner called them amazing)
+- The most common weakness: at rest the face still reads as four plain
+  digits with a themed background, and the wow lives only in the turns. Make
+  the time at rest belong to the theme too: carried by objects, characters,
+  light or material, or by a non-digit system (dials, counts, positions)
+  that still reads clearly.
+- Characters smaller than about 5 LEDs read only while they move. Make the
+  heroes big enough, or let motion carry them.
+- Thin one-pixel digits get lost on busy grounds, so leave a dark margin.
+- Round 3 on this panel: most faces still read at rest as 2x2 digits placed
+  in a scene. The strongest stills (inkwell, atelier, voxel, pinball,
+  snowglobe) made the time part of the world's material. Try a composition
+  that is not a 2x2 block of equal digits.
+- Fixes I had to make after round 3, check yours for the same: a character's
+  limb resting over a digit made 0 read as 6; a moonlit night state made the
+  hours vanish; a bright noon sky washed the digits out; a 4 read as U.
+  Render all ten digits AND a night clock (e.g. 02:47) and a noon clock.
+- Round 4 on this panel: the strongest still was zensand (the time carved
+  into a material, lit by a raking light). The weakest at rest were a
+  perspective view that shrank the far digits until a 1 vanished, and gear
+  digits whose 1 read as a cross: check every digit at --scale 3. Several
+  agents judged motion only from stills; contact sheets at 9 frames hide
+  pops, so also render a dense sheet (--frames 25) of each transition.
+
+THE OWNER'S TASTE (from ~120 faces they rated on this and sibling skills)
+- Loved:
+  - scope, radar, sand: extraordinarily smooth, physical, fancy transitions
+  - cube: 3D, constant dynamic
+  - numberfolk: digits as cute characters
+  - nixie
+  - urwerk and ressence: "not digits anymore"
+  - playful character and game designs (their avatar is a rainbow frog in
+    round glasses)
+- Disliked:
+  - ordinary or kit fonts
+  - four big digits with decoration
+  - static between turns
+  - abrupt transitions
+  - elements that don't belong to one world
+  - "good parts but no wow moment"
+- They accept reduced legibility for real artistry, but the time must still
+  be readable.
+
+Work alone: don't spawn subagents. Be economical: the owner's API quota ran
+out mid-round last time. Read files in focused slices, keep tool output short
+(pipe big outputs through head/tail), look at renders instead of dumping
+numbers, and don't re-read files you already have. About 11 other agents are
+building other faces in parallel on this machine (8 cores), so:
+- only ever write sim/designs/coaster*.js and out/coaster*
+- render sequentially, and keep GIFs to the settings above
+- don't run tools/livecheck.mjs or tools/serve.mjs

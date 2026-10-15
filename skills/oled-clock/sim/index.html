@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OLED simulator</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; min-height: 100vh; background: #0d0d10; color: #d8d8e0;
+    font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 28px 16px 60px;
+  }
+  h1 { font-size: 15px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #8b8b9a; margin: 0; }
+  #screen { display: block; box-shadow: 0 18px 50px rgba(0,0,0,.7); border-radius: 4px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; max-width: 980px; }
+  select, button, input { background: #1c1c22; color: #d8d8e0; border: 1px solid #33333d; border-radius: 5px; padding: 6px 10px; font: inherit; }
+  button { cursor: pointer; }
+  button:hover { background: #26262e; }
+  label { display: inline-flex; gap: 6px; align-items: center; color: #9d9dab; }
+  .meta { max-width: 760px; text-align: center; color: #7d7d8c; font-size: 12.5px; }
+  .meta b { color: #b9b9c6; font-weight: 600; }
+  .verdict { padding: 2px 8px; border-radius: 999px; font-size: 11.5px; }
+  .ok { background: #14401f; color: #64d98a; }
+  .bad { background: #4a1616; color: #ef8080; }
+  .night { background: #1c2340; color: #9fb4ff; }
+  /* Capture mode: only the frames, packed edge to edge from the top-left. */
+  body.capture { display: block; padding: 0; min-height: 0; background: #000; }
+  body.capture h1, body.capture .bar, body.capture .meta, body.capture #screen { display: none; }
+  #grid { position: fixed; left: 0; top: 0; line-height: 0; }
+  #grid canvas { position: absolute; display: block; }
+</style>
+</head>
+<body>
+  <h1>128x64 / 128x32 OLED simulator</h1>
+  <canvas id="screen"></canvas>
+  <div class="bar" id="bar"></div>
+  <div class="meta" id="meta"></div>
+  <div id="grid"></div>
+
+<script type="module">
+import { renderToCanvas, buildFrame, scanout, paint, DESIGNS, MODULES, moduleOf, fpsOf } from './js/player.js';
+import { BUSES } from './js/ssd1306.js';
+
+const q = new URLSearchParams(location.search);
+const capture = q.has('capture');
+if (capture) document.body.classList.add('capture');
+
+const params = {
+  design: q.get('design') ?? Object.keys(DESIGNS)[0],
+  clock: q.get('clock') ?? (capture ? '10:09:30' : 'now'),
+  colour: q.get('colour') ?? undefined,
+  module: q.get('module') ?? undefined,
+  bus: q.get('bus') ?? undefined,
+  scale: q.get('scale') ? Number(q.get('scale')) : undefined,
+  px: Number(q.get('px') ?? 6),
+  style: q.get('style') ?? 'photo',
+  crop: q.get('crop') ?? 'view',
+  tear: q.get('tear') === '1',
+  fps: q.get('fps') ? Number(q.get('fps')) : undefined,   // overrides the design's own rate
+  night: q.get('night') ?? 'auto',                         // night dimming: auto | off | on
+};
+
+function describe(report, design, oled) {
+  const fps = fpsOf(design, params.fps);
+  document.getElementById('meta').innerHTML =
+    `<b>${design.name}</b> — ${design.blurb ?? ''}<br>` +
+    `${report.ramBytes} RAM bytes in ${report.transactions} transactions: ${(report.busUs / 1000).toFixed(2)} ms on ${report.bus} → ` +
+    `bus allows <b>${report.fps === Infinity ? '∞' : report.fps.toFixed(1)} fps</b>, design runs at <b>${fps}</b> ` +
+    `<span class="verdict ${report.fps >= fps ? 'ok' : 'bad'}">${report.fps >= fps ? 'fits' : 'bus too slow'}</span>` +
+    `<br>panel refresh ${oled.frameRate().toFixed(1)} Hz · this browser is showing <b id="shown">${live.shown ?? '…'}</b> fps` +
+    nightNote(oled) +
+    report.warnings.map((w) => `<br><span class="verdict bad">${w}</span>`).join('');
+}
+
+/** Say so when the panel is running dimmed, and why. */
+function nightNote(oled) {
+  const c = oled.r.contrast;
+  if (c >= 0x80) return '';
+  const why = params.night === 'on' ? 'night dimming forced on' : 'night dimming, 23:00–07:00';
+  return `<br><span class="verdict night">🌙 ${why}: contrast 0x${c.toString(16).padStart(2, '0')}` +
+    ` (${Math.round(((c + 1) / 256) * 100)}% of full drive). Set "night dimming: off" to preview at day brightness.</span>`;
+}
+
+function fail(err) {
+  document.getElementById('meta').textContent = String(err?.stack ?? err);
+  window.__error = String(err);
+  document.title = 'error';
+}
+
+// ---- capture: every requested instant, packed into one screenshot ------------
+if (capture) {
+  try {
+    const times = (q.get('times') ?? q.get('t') ?? '0').split(',').map(Number);
+    const perRow = Number(q.get('perRow') ?? times.length);
+    // Every frame is painted into one reused work canvas and copied onto a
+    // single sheet: one canvas element per frame made headless Chrome peak
+    // at gigabytes for a long GIF.
+    const work = document.createElement('canvas');
+    const sheet = document.createElement('canvas');
+    document.getElementById('grid').append(sheet);
+    let sheetCtx = null;
+    times.forEach((t, i) => {
+      const { size } = renderToCanvas(work, params.design, { ...params, t });
+      if (!sheetCtx) {
+        sheet.width = size.width * Math.min(perRow, times.length);
+        sheet.height = size.height * Math.ceil(times.length / perRow);
+        sheet.style.left = sheet.style.top = '0px';
+        sheetCtx = sheet.getContext('2d');
+      }
+      sheetCtx.drawImage(work, (i % perRow) * size.width, Math.floor(i / perRow) * size.height);
+    });
+  } catch (err) { fail(err); }
+  requestAnimationFrame(() => requestAnimationFrame(() => { window.__ready = true; document.title = 'ready'; }));
+}
+
+// ---- live: real time, a frame sent at the design's own rate -------------------
+const canvas = document.getElementById('screen');
+const live = { offsetMs: 0, paused: false, t0: performance.now(), lastK: null, built: null, prev: null,
+  painted: 0, since: performance.now(), lastDescribe: 0, shown: null };
+
+function setClock(text) {
+  if (!text || text === 'now') { live.offsetMs = 0; return; }
+  const [h = 0, m = 0, s = 0] = text.split(':').map(Number);
+  const now = new Date(), want = new Date(now);
+  want.setHours(h, m, s, 0);
+  live.offsetMs = want - now;
+}
+// A restart powers the emulated controller up again, as a fresh boot would.
+const restart = () => { live.lastK = null; live.prev = null; };
+
+function tick(nowMs) {
+  requestAnimationFrame(tick);
+  if (live.paused) return;
+  const design = DESIGNS[params.design];
+  const fps = fpsOf(design, params.fps);
+  const t = Math.max(0, (nowMs - live.t0) / 1000);
+  const k = Math.floor(t * fps);
+  try {
+    const fresh = k !== live.lastK;
+    if (fresh) {
+      // A new frame goes out, continuing from the controller the last one
+      // left, exactly as firmware would run.
+      const date = new Date(Date.now() + live.offsetMs);
+      live.built = buildFrame(params.design, { t: k / fps, date, bus: params.bus, module: params.module, fps, night: params.night, prev: live.prev });
+      live.prev = live.built.oled;
+      live.lastK = k;
+      live.painted++;
+      // The text below the panel only needs refreshing a few times a second.
+      if (nowMs - live.lastDescribe > 250) {
+        describe(live.built.report, design, live.built.oled);
+        clockOut.textContent = date.toTimeString().slice(0, 8);
+        live.lastDescribe = nowMs;
+      }
+    }
+    if (nowMs - live.since >= 1000) {
+      live.shown = Math.round((live.painted * 1000) / (nowMs - live.since));
+      const el = document.getElementById('shown');
+      if (el) el.textContent = live.shown;
+      live.painted = 0; live.since = nowMs;
+    }
+    // Repaint only when the controller changed, or when tearing is shown
+    // (the scan moves through the frame on every display refresh).
+    if (fresh || params.tear) {
+      const mod = live.built.module;
+      const levels = scanout(live.built.oled, mod, { tear: params.tear, t, frameStart: k / fps });
+      paint(canvas, mod, levels, {
+        colour: params.colour ?? design.colour ?? mod.colours[0],
+        scale: params.scale ?? params.px / mod.pitch.x, style: params.style, crop: params.crop,
+      });
+    }
+  } catch (err) { fail(err); live.paused = true; }
+}
+
+const bar = document.getElementById('bar');
+const el = (tag, props = {}) => Object.assign(document.createElement(tag), props);
+const select = (pairs, value, onchange) => {
+  const s = el('select', { onchange: () => onchange(s.value) });
+  for (const [v, label] of pairs) s.append(new Option(label, v));
+  s.value = value;
+  return s;
+};
+const remember = () => {
+  const u = new URLSearchParams();
+  for (const k of ['design', 'colour', 'module', 'bus', 'fps', 'crop', 'style', 'px']) if (params[k] !== undefined) u.set(k, params[k]);
+  if (params.night !== 'auto') u.set('night', params.night);
+  if (params.tear) u.set('tear', '1');
+  history.replaceState(null, '', `?${u}`);
+};
+
+if (!capture) {
+  const colourSel = select([], '', (v) => { params.colour = v; remember(); });
+  const busSel = select(Object.entries(BUSES).map(([k, b]) => [k, b.label]), '', (v) => { params.bus = v; remember(); restart(); });
+  // Frame rate: the design's own, or an override. Above about 40 fps a full
+  // frame no longer fits I2C 400 kHz; the readout below says so.
+  const fpsSel = select([], '', (v) => { params.fps = v ? Number(v) : undefined; remember(); restart(); });
+  const sync = () => {
+    const d = DESIGNS[params.design];
+    const mod = moduleOf(d, params.module);
+    colourSel.replaceChildren(...mod.colours.map((c) => new Option(c, c)));
+    colourSel.value = params.colour ?? d.colour ?? mod.colours[0];
+    busSel.value = params.bus ?? d.bus ?? 'i2c400';
+    fpsSel.replaceChildren(new Option(`${d.fps ?? 20} fps (design)`, ''),
+      ...[15, 20, 30, 60, 120].filter((f) => f !== (d.fps ?? 20)).map((f) => new Option(`${f} fps`, f)));
+    fpsSel.value = params.fps ?? '';
+  };
+  const designSel = select(Object.entries(DESIGNS).map(([k, d]) => [k, `${d.name} (${d.module ?? '096-128x64'})`]), params.design, (v) => {
+    params.design = v; params.colour = undefined; params.bus = undefined; params.module = undefined; params.fps = undefined;
+    sync(); remember(); restart();
+  });
+  const cropSel = select([['view', 'pixels only'], ['glass', 'glass'], ['body', 'whole module']], params.crop, (v) => { params.crop = v; remember(); });
+  const styleSel = select([['photo', 'photo'], ['clean', 'clean']], params.style, (v) => { params.style = v; remember(); });
+  const zoomSel = select([[2, '2 px'], [3, '3 px'], [4, '4 px'], [6, '6 px'], [8, '8 px']], params.px, (v) => { params.px = Number(v); remember(); });
+  const tearBox = el('input', { type: 'checkbox', checked: params.tear, onchange: () => { params.tear = tearBox.checked; remember(); } });
+  const tearLabel = el('label', { title: 'show each panel refresh as scanned while the frame is on the bus' });
+  tearLabel.append(tearBox, 'tearing');
+
+  var clockOut = el('b', { title: 'time shown on the display' });
+  const clockInput = el('input', { type: 'text', size: 8, placeholder: 'hh:mm:ss', title: 'set the displayed time, then it keeps running' });
+  clockInput.onchange = () => { setClock(clockInput.value.trim()); clockInput.value = ''; restart(); };
+  const nowBtn = el('button', { textContent: 'now', onclick: () => { setClock('now'); restart(); } });
+  const turnBtn = el('button', {
+    textContent: '⏭ minute turn', title: 'jump to 5 seconds before the next minute',
+    onclick: () => {
+      const d = new Date(Date.now() + live.offsetMs), target = new Date(d);
+      target.setSeconds(55, 0);
+      if (target <= d) target.setMinutes(target.getMinutes() + 1);
+      live.offsetMs += target - d; restart();
+    },
+  });
+  const hourBtn = el('button', {
+    textContent: '⏭ hour turn', title: 'jump to 5 seconds before the next hour',
+    onclick: () => {
+      const d = new Date(Date.now() + live.offsetMs), target = new Date(d);
+      target.setMinutes(59, 55, 0);
+      if (target <= d) target.setHours(target.getHours() + 1);
+      live.offsetMs += target - d; restart();
+    },
+  });
+  const pauseBtn = el('button', { textContent: '⏸ pause' });
+  pauseBtn.onclick = () => {
+    live.paused = !live.paused;
+    pauseBtn.textContent = live.paused ? '▶ play' : '⏸ pause';
+    if (!live.paused) restart();
+  };
+  sync();
+  const nightSel = select([['auto', 'night dimming: auto (23–07)'], ['off', 'night dimming: off'], ['on', 'night dimming: always']],
+    params.night, (v) => { params.night = v; remember(); restart(); });
+  bar.append(designSel, colourSel, busSel, fpsSel, nightSel, cropSel, styleSel, zoomSel, tearLabel, el('span', { textContent: '·' }),
+    clockOut, clockInput, nowBtn, turnBtn, hourBtn, pauseBtn);
+  setClock(params.clock);
+  requestAnimationFrame(tick);
+}
+</script>
+</body>
+</html>

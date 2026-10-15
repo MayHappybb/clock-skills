@@ -1,0 +1,291 @@
+Design ONE clock face with the tft-clock skill, in
+/Users/bilibili/coding/lcd_clock/.claude/skills/tft-clock (run every command
+from that directory). Key: 'boogiewoogie'.
+
+The display is the Luat Air101-LCD: a 0.96" IPS colour LCD, 160 x 80 pixels
+(21.7 x 10.8 mm), RGB565, ST7735S on SPI, white LED backlight. It is a real
+colour pixel canvas: scenes, characters, real typography and flat graphic
+art are all possible. The owner asked for "all your creativity": a theme,
+fluent and smooth motion (both the constant life and the transitions), and
+interesting fonts that suit the theme. And 60 fps: they want the high
+refresh rate because it looks smoother.
+
+THE OWNER'S REQUEST, VERBATIM: "Pick surprising themes where the numerals
+ARE the theme's characters or material. The digits themselves are alive
+every second, on a beat, not only at the turn. Minute and hour transitions
+are smooth and happen through the theme's own action. Each face gets its
+own font, drawn for its theme. The time must read correctly in every
+frame." And for this round: "make 16 more. Try some different style, you
+could imagine, unleash all your creativity.", and then "make 16 more"
+again.
+
+THIS ROUND: EVERY FACE HAS ITS OWN STYLE. The last rounds were flat 2D
+colour or strict 1-bit. This round each of 32 faces (two batches of 16) works in a different
+visual medium, named in your seed as STYLE. Commit to it completely:
+- Study how the real medium looks (its marks, its palette limits, its
+  textures, its accidents) and make every pixel obey it, the numerals
+  above all. The style is not a filter painted over a clock; the digits,
+  the world and the motion are all made in it.
+- Translate the medium to 160x80 honestly: its defining marks must
+  survive at --scale 4 (if its real texture is finer than ~2 px, design a
+  bolder version of it that still reads as that medium).
+- The medium's own motion: how would this medium move if it were
+  animated by a master of it (line boil for drawings, registration drift
+  for prints, flicker for neon, the grid step of a game)? Use that.
+- Two or three restrained effects that belong to the medium make it feel
+  alive and precious; never busy.
+- The owner found that 3D shading, specular blobs and rounded volumes
+  don't express well at this resolution; all of these media are 2D, keep
+  them that way.
+- Night: design the night look on purpose (dim through ctx.lcd.backlight
+  and/or a darker palette); render 02:47:30 at --scale 4 and check every
+  digit still reads.
+- The seed's theme and its pieces are a starting point. If a stronger idea
+  in the same STYLE is in reach, take it; keep the style.
+
+THE TIME IS ALIVE (the main request). In the early rounds the
+numerals sat still between minute turns while a few small things moved
+around them, and the wow lived only in the turn. The owner's verdict on
+the round that fixed this (1-bit, round 9): "very amazing", above all
+rubberhose, where the four numerals are 1930s cartoon characters dancing
+on the beat. What worked: the numerals ARE the theme's characters or
+material, they move every second on a beat, and the turn happens through
+the theme's own action. Round 11 kept that recipe in colour. So the TIME ITSELF is in visible motion every
+second of the minute, at rest, not only at :59-:01:
+- The numerals are made of, or carried by, something that moves: they
+  bounce, dance, flow, pulse, wave, march, are worked and reworked, are
+  crossed by travelling fronts, ripples or patterns, or are characters
+  that act. A viewer glancing at any second of the minute sees the digits
+  alive.
+- The world around them is busy too, with big moves (not only specks), but
+  calmer than the digits.
+- A rhythm: a beat once a second (or twice) on top of continuous motion,
+  plus a bigger flourish every ~10-15 s, so the minute has a structure.
+- Readability still wins: at EVERY frame the time reads correctly at
+  --scale 4. Motion that bends, shakes or animates a digit must never make
+  it read as another digit (no rotation that mirrors or narrows it, no
+  limb or part that closes a counter or opens a bowl). Keep the numerals'
+  silhouette steady enough to read, their surface and edges alive.
+- Measure it: from the skill directory run
+    node ../../../prompts/round9/alive.mjs boogiewoogie
+  It builds 1 s of consecutive frames at three rest moments and reports
+  "frame" (% of the glass changing each frame), "second" (% changing within
+  a second) and "ink" (% of the non-ground pixels in the central area that
+  change within a second; it takes the commonest colour as ground, so in
+  colour it is a rough proxy). The old colour favourites, whose digits sit
+  still: xray second 8.6 ink 10.9, escher 90.8/26.2, illuminated 57.6/4.9,
+  lascaux 98.8/5.3. The loved 1-bit round 9: ink 73-99, second 35-77.
+  Targets: second at least ~30% and ink at least ~40% at every rest
+  moment, with the time still reading. The number is not the judge: say
+  in the report what the digits themselves do each second.
+- Dynamic, fancy effects at the turn and the hour: a flowing minute turn,
+  a real wow at the hour.
+- Read sim/designs/xray.js (how every pixel comes from material maps
+  through a palette) and rubberhose.js (the beat) first; skim one of the
+  round-11 faces (noodles.js, cats.js or graffiti.js) for a colour face
+  whose digits move at rest.
+
+YOU CANNOT SEE PNGs. In this setup the Read tool returns nothing for image
+files. Review your frames as text instead:
+  node tools/frame.mjs boogiewoogie --clock HH:MM:SS.s --map --half   (whole glass)
+  node tools/frame.mjs boogiewoogie --clock HH:MM:SS.s --map --crop x,y,w,h
+The map prints one character per colour with a legend; read the digits out
+of it. Do this at rest (:05, :30, :55), on dense steps through the minute
+turn, the hour and midnight, and at night. Still write every PNG/GIF
+listed below: the owner looks at them.
+
+First read SKILL.md, then sim/js/gfx.js and sim/js/kit.js for the API.
+These 78 faces already exist (plus 16 being built right now: roguelike,
+flytrap, neon, knitting, playbook, platformer, flamingos, mangasfx,
+seachart, dragondance, cyanotype, nouveau, tattooflash, fillmore, crayon,
+skywriter; don't repeat those either) for this panel (out/gallery.png,
+out/gallery-round1.png to out/gallery-round11.png): harbour, koi, mischief,
+chameleon; shanshui, jelly, mitosis, vector; xray, synchro, pcb, mochi;
+escher, illuminated, abyss, match3, topiary, lascaux, racetrack,
+artillery; cropcircle, icelantern, triadic, katamari; thermal, bayeux,
+blackfigure, blueprint, kilim, popart, chart, cutouts; ukiyoe,
+stainedglass, metro, mosaic, marbling, delft, tangram, doppler;
+murmuration, cartridge, papercut, chladni; conway, moire, guilloche,
+antfarm, etchasketch, typewriter, pinscreen, blocklights; rubberhose,
+inferno, ferrofluid, cracktro; acrobats, fountain, snake, gears, bubbles,
+tesla, dominoes, knots; phased and unison (wave interference); invaders,
+honeycomb, noodles, graffiti, aquacade, cardstunt, cats, pachinko. Don't
+repeat any of these themes, nor the OLED classics from the sibling skill
+(scope, radar, sand, cube, nixie). They show the mechanics; they are not
+the creative bar.
+
+Edit only sim/designs/boogiewoogie.js. It is already registered as a placeholder;
+give it a real name and blurb and keep fps: 60. Don't touch other designs,
+index.js, sim/js/ or tools/; put any helpers in your own file
+(sim/designs/boogiewoogie-*.js). If you find a bug in the shared tools, report it,
+don't fix it.
+
+Starting idea. It is short on purpose: invent the details yourself (the
+palette, the font, the life at rest, the beat, the turn, the hour). Push
+past it, or replace it with something stronger in its world:
+STYLE: Mondrian's Broadway Boogie Woogie. A grid of yellow lines on off-white, the lines broken into small squares of red, blue and grey that move along them like traffic and music, larger flat colour blocks, nothing else. THEME: the city at night: each numeral is a city block of the grid, its edges lined with pulsing traffic squares that hop along on every beat, syncopated like boogie-woogie piano. Minute turn: the traffic re-routes and the grid reorganises into the new digit. Hour: rush hour, everything flows, the time still reading.
+
+GOAL: a stranger looks at it and says "wait, that's a clock?" Creativity
+comes first. A competent, pretty, conventional face is a fail.
+
+REQUIREMENTS
+1. Concept: the time is expressed by the theme's own mechanism. Test: if
+   swapping your digits for a plain font still works, the digits are not
+   part of the idea yet.
+2. Letterforms: draw your own, made of or carried by the theme's material
+   or characters, designed for this pixel grid. The kit's fonts
+   (strokeDigit, segDigit, dotText, 3x5, 5x7) are not allowed for the time,
+   not even as a skeleton with texture painted on. Design all ten digits as
+   a set and make them beautiful at this resolution, every edge designed.
+   Small secondary type (a date, a label), if any, is in the same world's
+   style.
+3. Use the canvas: a 2:1 strip, the whole 160x80, the backlight. Never the
+   default of four equal digits in a row with decoration around them.
+4. Always alive at 60 fps: smooth motion that belongs to the theme, every
+   second. At most ~1 px per frame per moving thing reads as a glide; the
+   crystal's ~15 ms response is about one 60 fps frame, so fast
+   high-contrast motion smears (renders show it; that is the real look).
+5. Minute turn: the old digit physically becomes the new one through the
+   theme's process, 0.8-3 s, eased, no pops or cuts. The time is never wrong
+   mid-transition (empty or half-drawn is fine; a different number is not).
+   The hour gets a bigger, distinct show, and the time stays readable
+   through it (blank for more than ~1 s is a fail).
+6. Colour: the palette your STYLE allows (some are strict: four DMG
+   greens, three riso inks, EGA's sixteen, cyanotype blue); say why in the
+   header comment. The time is the strongest contrast on the glass, the ground
+   calmer. It is an LCD: black is a dark grey that glows a little.
+7. 60 fps on a small MCU: fps: 60 means a 16.7 ms budget. Keep the rough C
+   estimate for esp32c3 (no FPU, the weakest profile) at most ~14 ms in the
+   worst frame of check.mjs, and the mean well under. Per-pixel callbacks
+   (paint, fillWhere, fillSDF) and gradients over big areas are what blow
+   it: precompute sprites, masks or distance fields per minute and look them
+   up; kit.sin/cos, not Math.sin, in hot loops. No per-pixel allocation or
+   closures in hot loops; keep hot objects monomorphic. Check tearing for
+   fast horizontal motion of tall shapes (render --tear).
+8. Real size: the whole face is 21.7 x 10.8 mm seen from arm's length.
+   Detail finer than ~2 px vanishes. Judge legibility at --scale 4 (about
+   true size) as well as zoomed.
+9. Technical:
+   - frame() is a pure function of time: closed form, or deterministic
+     caches keyed by the minute. If you must simulate, simulate from the
+     start of the current minute inside frame, warmup <= 2 s of work.
+   - `node tools/check.mjs --design boogiewoogie` passes (it takes ~40 s at 60 fps),
+     and `node ../../../prompts/round9/alive.mjs boogiewoogie` meets the targets.
+   - RAM: keep working buffers at most ~150 KB beyond the 25 KB frame
+     buffer, and state the peak in the report.
+   - Work done outside the main canvas (a once-a-minute redraw into your
+     own buffer) is invisible to the estimate: keep it small or spread it
+     over several frames, and state its rough cost in the report.
+   - The kit's colour helpers (mix, dither565, ...) are billed as Math
+     calls per use; in per-pixel loops use your own integer arithmetic.
+   - Flash: precomputed tables and sprites <= ~256 KB on the device
+     (RGB565 = 2 bytes a pixel); state the total in the report.
+   - No hidden extra features.
+
+PROCESS
+1. Pitch three very different concepts in your theme's world. Pick the
+   strongest, judging harshly.
+2. Digits first. Render every digit in every slot:
+   node tools/render.mjs boogiewoogie --clocks 00:00:30,11:11:30,22:22:30,03:33:30,04:44:30,05:55:30,16:06:30,17:17:30,18:18:30,19:39:30 --px 3 --cols 2 --out out/boogiewoogie-digits.png
+   and read each digit in the text maps. Iterate until each digit is
+   beautiful and unmistakable.
+3. Build, then render these (and check them through text maps):
+   - out/boogiewoogie.png (and --scale 4 --out out/boogiewoogie-true.png)
+   - out/boogiewoogie-turn.png: --clock 10:09:58 --frames 12 --duration 4 --sheet --px 3 --cols 3
+   - out/boogiewoogie-hour.png: the same at --clock 10:59:58, and once at 23:59:58
+   - out/boogiewoogie-day.png: --clocks 02:47:30,07:15:30,12:00:30,18:05:30 --px 3
+   - out/boogiewoogie.gif: --clock 10:09:57 --frames 150 --duration 3 --gif --px 4
+     (50 fps is the GIF limit), and out/boogiewoogie-hour.gif at 10:59:57
+   Contact sheets hide pops: map dense steps (every ~0.1 s) through each
+   transition before calling it smooth and correct.
+4. Critique it in the owner's voice. Is the font, layout, motion or
+   transition ordinary? Do the digits themselves move every second? Is
+   there a wow moment? Fix the weakest part and re-check. At least two
+   rounds.
+5. Report:
+   - the idea in one sentence
+   - what the digits do each second at rest, the flourish, the turn, the
+     hour
+   - render paths
+   - the check.mjs result (incl. esp32c3 max/mean estimate), the alive.mjs
+     result, flash and RAM totals
+   - the honest weakest point
+
+LESSONS FROM EARLIER ROUNDS (these are the fixes I had to send back)
+- At rest the face still read as four plain digits with a themed
+  background: make the time belong to the theme, carried by its objects,
+  characters or material.
+- The strongest stills put the time on a big, bold physical object of the
+  theme, with the world alive around it.
+- Characters below ~12 px read as blobs: draw heroes bold and simple
+  (outlined, a few flat colours, clear eyes), with their defining
+  silhouette parts big (horns, ears, tails, wings), and check at --scale 4.
+- Anything else that looks like a time, or a numeral-sized ring or stroke
+  beside the digits, competes with the time. Loose actors near the digits
+  read as extra digits ("i47"): keep them away or clearly smaller/dimmer.
+- Background made of the same stuff and saturation as the digits competes
+  with them: calm the ground, give numerals a keyline or a 3-4 px moat.
+- Digits that read as LETTERS: a peaked 4 read "A", 4 read "U", 9 read "a"
+  in a squat slot, 7/T, 1/I. A 6 or 0 whose counter fills reads as 8;
+  snapping digits to a coarse grid of theme units filled counters (6 -> 8,
+  09 -> B8). Draw each digit as a clean shape with open counters first,
+  then let the material fill or clip to it.
+- A limb resting over a digit made 0 read as 6; an effect that changes over
+  the minute closed a counter late (check :05, :30 and :55).
+- A digit that rotates or turns while shown read as another (0 edge-on
+  read 1).
+- Partial digits read as other digits: a top-down wipe left an 8's lower
+  loop (read 0); a 9 whose bowl came first read 0; a dotted 7 read "?"; a
+  thinning 0 read "c"; a 1 removed before the 9 beside it made 10:19 read
+  10:09. Remove every changing digit on the same schedule, evenly (by
+  fraction of its own pixels, ranked once), or reveal the whole outline
+  first, then fill. Removal must thin a digit or throw its material away,
+  never close its open sides.
+- Work changing digits concurrently; keep the unreadable window under ~1 s,
+  and plan the midnight four-digit change first (blanks crept to ~1 s).
+- Never move the whole time across a screen edge (an hour scroll showed
+  "4·59" at 14:59:59).
+- A shape dashing at ~8 px a frame smeared and tore: speed lines are fine,
+  but keep the shape's own motion near 1-2 px/frame.
+- Night failures: muddy colours on near-black, far digits vanishing.
+- A face's worst frame and RAM were far over budget: measure them for real.
+- Round 11 (8 colour faces) all passed; what I flagged or fixed:
+  - A closed 4 whose counter was a 1-2 px keyline slit read as a solid
+    pennant: every counter needs at least ~4x6 px of ground.
+  - Characters ~10 px long (swimmers, invaders) lost all their detail at
+    true size and the digit read as beads or blocks: fewer, bigger heroes.
+  - Theme actors (lifting strands, porter bees) resting across a digit's
+    body made it messy; keep actors on the outside of strokes.
+  - Four digits in a row was still the default in half the faces.
+- Particles carrying the time: give each a home position precomputed per
+  minute and derive its motion in closed form from time and index
+  (kit.noise, kit.sin), so any frame can be built cold.
+- Don't add the owner's avatar or any recurring mascot. Characters belong
+  to the theme.
+- Keep sim/designs/boogiewoogie.js importable at all times: every tool loads
+  index.js, which imports every design, so a half-written file breaks
+  the other agents' renders too. If your renders fail because another
+  design is mid-edit, wait a minute and retry; don't touch their file.
+
+THE OWNER'S TASTE
+- On this panel: xray most, then escher, illuminated, lascaux (flat 2D with
+  life on top); rubberhose (digits as dancing characters). Round 11
+  (invaders, honeycomb, noodles, graffiti, aquacade, cardstunt, cats,
+  pachinko) not yet rated.
+- On sibling skills: smooth, physical, fancy transitions (scope, radar,
+  sand); numberfolk (digits as cute characters); urwerk and ressence ("not
+  digits anymore"); playful character and game designs.
+- Disliked: ordinary or kit fonts; four big digits with decoration; static
+  between turns; abrupt transitions; elements that don't belong to one
+  world; "good parts but no wow moment"; 3D shading on this resolution.
+- They accept reduced legibility for real artistry, but the time must
+  still read.
+
+Work alone: don't spawn subagents. Be economical: read files in focused
+slices, keep tool output short (pipe big outputs through head/tail), and
+don't re-read files you already have. Up to ~30 other agents are
+building other faces in parallel on this machine (renders may be slow;
+name any temp files with your key as prefix, never generic /tmp names), so:
+- only ever write sim/designs/boogiewoogie*.js and out/boogiewoogie*
+- render sequentially, and keep GIFs to the settings above
+- don't run tools/serve.mjs

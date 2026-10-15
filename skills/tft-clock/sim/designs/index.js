@@ -48,6 +48,12 @@ import tesla from './tesla.js';
 import dominoes from './dominoes.js';
 import knots from './knots.js';
 
+// round 14 (2026-10-15), 60 fps, fluent transitions, themed fonts, vivid
+import origami from './origami.js';
+import slinky from './slinky.js';
+import aurora from './aurora.js';
+import airdancer from './airdancer.js';
+
 // round 13 (2026-10-14), 60 fps, a different visual medium per face (second batch)
 import teletext from './teletext.js';
 import wayang from './wayang.js';
@@ -139,6 +145,11 @@ import specimen from './specimen.js';
 import testcard from './testcard.js';
 
 export default {
+  // round 14
+  origami,
+  slinky,
+  aurora,
+  airdancer,
   // round 13
   teletext,
   wayang,

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clock faces</title>
+<link rel="stylesheet" href="gallery.css">
+<script type="module" src="gallery.js"></script>
+</head>
+<body>
+<header class="masthead">
+  <div class="masthead-row">
+    <a class="wordmark" href="./">Clock faces</a>
+    <nav class="halls-nav" aria-label="Displays" id="halls-nav"></nav>
+  </div>
+  <div class="clock" role="group" aria-label="Shared clock">
+    <output class="clock-time" id="clock-time" aria-live="off">--:--:--</output>
+    <div class="clock-controls">
+      <button type="button" id="pause" aria-pressed="false">Pause</button>
+      <label class="speed">Speed
+        <select id="speed">
+          <option value="0.25">¼×</option>
+          <option value="1" selected>1×</option>
+          <option value="10">10×</option>
+          <option value="60">60×</option>
+        </select>
+      </label>
+      <button type="button" id="next-minute" title="Jump to 5 seconds before the next minute">Next minute</button>
+      <button type="button" id="next-hour" title="Jump to 5 seconds before the next hour">Next hour</button>
+      <button type="button" id="now" title="Back to the real time at normal speed">Now</button>
+    </div>
+    <div class="day">
+      <input type="range" id="day" min="0" max="86399" step="1" value="0" aria-label="Time of day" aria-valuetext="">
+      <div class="day-scale" aria-hidden="true">
+        <span>0</span><span>3</span><span>6</span><span>9</span><span>12</span><span>15</span><span>18</span><span>21</span><span>24</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main id="halls">
+  <section class="intro">
+    <h1 id="intro-title">Every face, on one clock</h1>
+    <p id="intro-text">Loading the faces from the skills.</p>
+  </section>
+</main>
+
+<div class="focus" id="focus" role="dialog" aria-modal="true" aria-labelledby="focus-name" hidden>
+  <div class="focus-bar">
+    <button type="button" class="focus-back" id="focus-close">Back to the hall</button>
+    <div class="focus-step">
+      <button type="button" id="focus-prev" aria-label="Previous face">Previous</button>
+      <span id="focus-pos"></span>
+      <button type="button" id="focus-next" aria-label="Next face">Next</button>
+    </div>
+  </div>
+  <div class="focus-stage" id="focus-stage"></div>
+  <div class="focus-info">
+    <div class="focus-text">
+      <h2 id="focus-name"></h2>
+      <p class="focus-meta" id="focus-meta"></p>
+      <p class="focus-blurb" id="focus-blurb"></p>
+      <p class="focus-rate" id="focus-rate" aria-live="off"></p>
+    </div>
+    <form class="focus-controls" id="focus-controls" aria-label="Display options"></form>
+  </div>
+</div>
+</body>
+</html>

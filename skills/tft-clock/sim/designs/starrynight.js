@@ -46,7 +46,7 @@
 import { clockFields, sin, cos, hash, clamp, progress, ease } from '../js/kit.js';
 import {
   W, H, N, NOLANE, LANE, ARC, CLS, REG, LSPEED, LPER, LSEED, NLANES, CLASSES, NCLASS, HBASE, NHALO, HALO_OF,
-  STARS, MOON, SLOTS, CYP, WINDOWS,
+  STARS, MOON, SLOTS, CYP, WINDOWS, CL,
 } from './starrynight-scene.js';
 import { GLYPHS, MW, MH, MG, NONE } from './starrynight-glyphs.js';
 
@@ -98,14 +98,16 @@ const DROW = new Uint16Array(4 * 8), DGL = new Uint16Array(4 * 8), DFADE = new U
 const PICK = new Uint8Array(1024), GAPF = new Uint8Array(1024), BKT = new Uint8Array(1024), BKT2 = new Uint8Array(1024);
 for (let i = 0; i < 1024; i++) {
   const h = hash(i, 4242);
-  PICK[i] = h % 6; GAPF[i] = (h >>> 8) & 1 ? 1 : 0; BKT[i] = (h >>> 12) & 31; BKT2[i] = (h >>> 20) & 31;
+  // three strokes in four end in a sliver of underpaint
+  PICK[i] = h % 6; GAPF[i] = (h >>> 8) & 3 ? 1 : 0; BKT[i] = (h >>> 12) & 31; BKT2[i] = (h >>> 20) & 31;
 }
 
 // ------------------------------------------------------------ timing
 
 const LEN = 8;
-const BEAT_JUMP = [5, 7, 5, 2];        // px each sub-lane leaps on the beat (keyline least)
-const SPEED = [15, 21, 15, 6];         // px/s of steady flow
+const BEAT_JUMP = [5, 7, 5, 2, 3, 2];  // px each sub-lane leaps on the beat (keyline and echoes least)
+const SPEED = [15, 21, 15, 6, 11, 8];  // px/s of steady flow
+const ECHO_CLS = [CL.skyTeal, CL.skyMid];
 const D0 = 59.2, DSPAN = 0.4, FLY = 0.45, A0 = 0.2, ASPAN = 0.5;
 
 const smooth = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
@@ -132,8 +134,8 @@ function cometAt(tc) {
 // ------------------------------------------------------------ per-frame scratch (RAM)
 
 const OFF = new Int32Array(NLANES);
-const LOFF = new Int32Array(16), LPERD = new Int32Array(4);
-const RSH = new Int8Array(MH);
+const LOFF = new Int32Array(32), LPERD = new Int32Array(4);
+const RSH = new Int8Array(MH), MODE = new Uint8Array(4), MODE2 = new Uint8Array(4);
 const BST = new Uint8Array(32), BDX = new Int16Array(32), BDY = new Int16Array(32), BLV = new Uint8Array(32);
 
 export default {
@@ -184,9 +186,12 @@ export default {
     }
 
     // ---- lane offsets: every dash of the picture slides along its lane
+    // at the hour the comet's wind makes the whole painting rush for two seconds, then
+    // runs it a little slow until :09.5 to give the time back (so nothing ever jumps)
+    const rush = hourTurn ? 2.2 * smooth((tc + 1.0) / 2.6) - 2.2 * clamp((tc - 1.6) / 7.9, 0, 1) : 0;
     for (let L = 0; L < NLANES; L++) {
       const p = LPER[L], v = LSPEED[L];
-      OFF[L] = v ? Math.floor((LSEED[L] + v * T) % p) : LSEED[L] % p;
+      OFF[L] = v ? Math.floor((LSEED[L] + v * (T + rush * (v > 4 ? 1.6 : 0.5))) % p) : LSEED[L] % p;
     }
     cost.box += NLANES * 12;
 
@@ -226,6 +231,17 @@ export default {
       g.fillRect(wx, wy, 2, 2, grp === 4 ? 0xf0a030 : winC);
     }
 
+    // ---- the numerals' state this frame, and the wind's echo round them (under everything else)
+    const bj = bt < 0.32 ? ease.outCubic(bt / 0.32) : 1, beats = Math.floor(T) + bj;
+    for (let k = 0; k < 4; k++) {
+      let mode = 0;       // 0 rest, 1 leaving, 2 arriving
+      if (s >= D0 - 0.1 && (nxt.hh + nxt.mm)[k] !== cur[k]) mode = 1;
+      else if (s < A0 + ASPAN + 0.1 && (prv.hh + prv.mm)[k] !== cur[k]) mode = 2;
+      MODE[k] = mode;
+      MODE2[k] = s < 1.5 && (prv.hh + prv.mm)[k] !== cur[k] ? 1 : 0;   // arrived this minute (settling until 1.5 s)
+      numeral(g, k, +cur[k], mode, s, T, beats, hourTurn, tc, 0);
+    }
+
     // ---- the comet (hour): head, and a tail of fresh strokes that the wind takes
     if (hourTurn && tc > CT0 - 0.05 && tc < CT1 + 1.1) comet(g, tc, nu);
 
@@ -261,6 +277,7 @@ export default {
       DROW[k * 8 + j] = to565(c);
       DGL[k * 8 + j] = to565(k === 3 ? c : mixi(c, 0xffffff, 150));
     }
+    DROW[3 * 8 + 6] = DGL[3 * 8 + 6] = ROW[CL.skyMid * 8 + 6];   // the keyline's gaps show the same underpaint
     for (let k = 0; k < 4; k++) for (let j = 0; j < 7; j++) {
       const c = du ? mixi(DIG[k][j], DIGN[k][j], du) : DIG[k][j];
       for (let lv = 1; lv <= 4; lv++) {
@@ -269,37 +286,41 @@ export default {
       }
     }
     cost.box += 4 * 7 * 6 * 6;
-    const bj = bt < 0.32 ? ease.outCubic(bt / 0.32) : 1, beats = Math.floor(T) + bj;
-    for (let k = 0; k < 4; k++) {
-      const dCur = +cur[k];
-      let mode = 0, dg = dCur;       // 0 rest, 1 leaving, 2 arriving
-      if (s >= D0 - 0.1 && (nxt.hh + nxt.mm)[k] !== cur[k]) mode = 1;
-      else if (s < A0 + ASPAN + 0.1 && (prv.hh + prv.mm)[k] !== cur[k]) mode = 2;
-      numeral(g, k, dg, mode, s, T, beats, hourTurn, tc);
-    }
+    for (let k = 0; k < 4; k++) numeral(g, k, +cur[k], MODE[k], s, T, beats, hourTurn, tc, 1);
   },
 };
 
 // ------------------------------------------------------------ one numeral
 
-function numeral(g, k, d, mode, s, T, beats, hourTurn, tc) {
+function numeral(g, k, d, mode, s, T, beats, hourTurn, tc, layer) {
   const G = GLYPHS[d], ox = SLOTS[k][0] - MG, oy = SLOTS[k][1] - MG, buf = g.buf;
   const cx = SLOTS[k][0] + 12, cy = SLOTS[k][1] + 20;
-  const sg = surge(s, cx);
+  let sg = surge(s, cx);
+  // a changing swirl spins up before the wind takes it, and a new one lands spinning and settles
+  if (mode === 1 && s > 58.4) sg += 14 * (s - 58.4) * (s - 58.4);
+  else if (mode === 2 || (s < 1.5 && MODE2[k])) sg -= 14 * (1.5 - s) * (1.5 - s);
   // lane offsets: steady flow, the beat's leap, the gusts' surge; keylines slower
   for (let p = 0; p < G.paths; p++) {
     const per = G.per[p];
     LPERD[p] = per;
-    for (let sub = 0; sub < 4; sub++) {
-      const v = SPEED[sub] * T + BEAT_JUMP[sub] * beats + sg * (sub === 3 ? 0.4 : 1) + ((k * 29 + p * 13 + sub * 7) % per);
-      LOFF[p * 4 + sub] = Math.floor(v % per);
+    for (let sub = 0; sub < 6; sub++) {
+      const v = SPEED[sub] * T + BEAT_JUMP[sub] * beats + sg * (sub >= 3 ? 0.4 : 1) + ((k * 29 + p * 13 + sub * 7) % per);
+      LOFF[p * 8 + sub] = Math.floor(v % per);
     }
   }
   // the glint: on each beat a light runs along every swirl
   const bt = T - Math.floor(T), gl = bt < 0.55 ? ease.inOutQuad(bt / 0.55) : -1;
   // the turn: each stroke's bucket says when it leaves (or lands) and where it flies
   let anim = false;
-  if (mode) {
+  if (mode && layer === 0) {
+    // echoes do not fly: they thin out with the digit, on the same schedule
+    anim = true;
+    for (let b = 0; b < 32; b++) {
+      const r = (b + 0.5) / 32;
+      if (mode === 1) BST[b] = s < D0 + DSPAN * r ? 0 : 2;
+      else BST[b] = s >= A0 + ASPAN * ((BKT2[b * 31 & 1023] + 0.5) / 32) - FLY * 0.5 ? 0 : 2;
+    }
+  } else if (mode) {
     anim = true;
     for (let b = 0; b < 32; b++) {
       const r = (b + 0.5) / 32;
@@ -344,13 +365,37 @@ function numeral(g, k, d, mode, s, T, beats, hourTurn, tc) {
   }
   const salt = k * 101;
   let n = 0, nf = 0;
+  if (layer === 0) {
+    for (let py = 0, j = 0; py < MH; py++) {
+      const Y = oy + py, rs = RSH[py];
+      if (Y < 0 || Y >= H) { j += MW; continue; }
+      for (let px = 0; px < MW; px++, j++) {
+        const lane = G.lane[j];
+        if (lane === NONE || (lane & 7) < 4) continue;
+        const X = ox + px + rs;
+        if (X < 0 || X >= W) continue;
+        const i = Y * W + X;
+        if (REG[i] !== 0 || CLS[i] >= HBASE || CLS[i] === CL.moonLit || CLS[i] === CL.moonDisc) continue;
+        const sub = lane & 7, path = lane >> 3;
+        let u = G.arc[j] - LOFF[lane];
+        if (u < 0) u += LPERD[path];
+        const key = (lane * 53 + (u >> 3) * 7 + salt) & 1023;
+        if (anim && BST[BKT[key]] !== 0) continue;
+        const cb = ECHO_CLS[sub - 4] << 3;
+        buf[i] = (u & 7) === 7 && GAPF[key] ? ROW[cb + 6] : ROW[cb + PICK[key]];
+        n++;
+      }
+    }
+    g.cost.px += n; g.cost.box += MW * MH * 3 + n * 12;
+    return;
+  }
   for (let pass = anim ? 0 : 1; pass < 2; pass++) {
     for (let py = 0, j = 0; py < MH; py++) {
       const Y = oy + py, rs = RSH[py];
       for (let px = 0; px < MW; px++, j++) {
         const lane = G.lane[j];
-        if (lane === NONE) continue;
-        const sub = lane & 3, path = lane >> 2, arc = G.arc[j];
+        if (lane === NONE || (lane & 7) > 3) continue;
+        const sub = lane & 7, path = lane >> 3, arc = G.arc[j];
         let u = arc - LOFF[lane];
         if (u < 0) u += LPERD[path];
         const key = (lane * 53 + (u >> 3) * 7 + salt) & 1023;

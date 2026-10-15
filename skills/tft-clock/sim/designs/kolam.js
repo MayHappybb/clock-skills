@@ -1,4 +1,49 @@
-// Kolam (draft 2)
+// Kolam: the doorstep of a South Indian house at dawn, and the time is the
+// kolam on it. Each numeral is drawn the way a kolam is: a row of pulli (rice
+// flour dots) laid along the digit's centreline, and one closed flour line
+// weaving round them, its two branches crossing between every pair of dots
+// so each dot sits in its own lens, wrapping round the end dots of an open
+// stroke and crossing at its corners (kolam-glyphs.js: ten centrelines drawn
+// for this face, open counters, a figure-eight 8, a ring-and-tail 6 and 9).
+// Hours are a small kolam top left, minutes a big one at the right; a clay
+// lamp on a mango leaf with marigolds sits below the hours.
+//
+// Alive at rest: the line is never finished. The lenses breathe in a wave
+// that runs along every digit, the crossings slide to and fro as if the line
+// were being retraced, and once a second the flour is re-sprinkled: a bright
+// front runs down each digit and swells the lenses as it passes. Ants walk
+// the line (rice flour kolams feed them). The shadow of a coconut frond sways
+// across the step, the lamp's flame flickers. Every quarter minute a hand of
+// rangoli powder fills the lenses with colour along the digit (kumkum and
+// saffron, turmeric and leaf green, red and indigo), and it soaks away.
+//
+// Minute turn: a coconut-rib broom comes up the step and sweeps the changing
+// kolams in three strokes (the flour thins grain by grain, ranked once, and
+// goes to dust), the broom flicks off the top, the swept ground is sprinkled
+// (it darkens in spots and dries over ten seconds), the new pulli are tapped
+// in all along the new digit, and a hand in glass bangles reaches in from the
+// step and draws the line round them, both branches at once, fresh flour
+// bright behind the fingers. Hour: the whole step is washed, and after the
+// new kolam a festival rangoli blooms out from the colon in a powder front:
+// a lotus in rings and a sikku lattice in deep powder colours, every lens of
+// the time filled, a dark moat kept round each flour line. It soaks away at
+// :50-:56.
+//
+// Palette: what is on a real doorstep: damp dark earth (warm by day, blue-
+// black by night), rice flour white (four grain shades and a fresh white),
+// six rangoli powders in a bright and a deep set, fired clay, oil, flame,
+// marigold and leaf. Every pixel is an index (flour, ground, powder) looked
+// up through a palette mixed per frame for night and for light (sun, frond
+// shadow, lamp glow): one table lookup a pixel. All hard pixels (flour is
+// grainy); only the hand is anti-aliased. Night dims the backlight to 45%,
+// cools the ground and flour, and lets the lamp light a warm pool.
+//
+// Cost: the flour line is stamped by a 1.5 px pen at 0.5 px steps along
+// precomputed centreline tables (4.2k samples, ~50 KB as int16), three
+// table sines a sample; the frame is one index-to-colour pass. Per minute: a
+// wet-ground field (12.8k px, the frame that needs it), and at the hour a
+// moat mask. RAM beyond the frame: the index buffer 12.8 KB, two wet fields
+// 25.6 KB, one moat 12.8 KB.
 import { clockFields, sin, ease, clamp, progress, hash } from '../js/kit.js';
 import { buildGlyph } from './kolam-glyphs.js';
 import {
@@ -7,8 +52,8 @@ import {
 } from './kolam-world.js';
 
 const SIZES = {
-  big: { w: 37, h: 72, d: 7.2, A: 3.4, inset: 4.7, dot: 2 },
-  small: { w: 25, h: 46, d: 6.0, A: 2.7, inset: 3.9, dot: 1 },
+  big: { w: 37, h: 72, d: 7.2, A: 3.4, inset: 4.7, dot: 2, mo: 1 },
+  small: { w: 25, h: 46, d: 6.0, A: 2.7, inset: 3.9, dot: 1, mo: 0.72 },
 };
 const SLOTS = [
   { x: 3, y: 3, z: 'small' }, { x: 31, y: 3, z: 'small' },
@@ -38,12 +83,12 @@ for (const z of Object.keys(SIZES)) {
   off.sort((a, b) => a[2] - b[2]);
   S.fill = off.map(([dx, dy]) => [dx, dy]);
 }
+const sineE = (t) => 0.5 - 0.5 * Math.cos(Math.PI * t);
 const CAP = Array.from({ length: 11 }, (_, k) => [Math.cos(((k + 1) / 12) * Math.PI), Math.sin(((k + 1) / 12) * Math.PI)]);
 
 // ------------------------------------------------------------ the turn's schedule (seconds of the minute)
-const SW_IN = 58.0, SW0 = 58.2, PASS = 0.48, SW_OUT = SW0 + 3 * PASS, SW_END = SW_OUT + 0.3;  // the broom
-const WET0 = 59.7, WETLEN = 0.5, DRY = 9;                                                   // the sprinkle
-const DUST_END = 0.45;
+const SW_IN = 58.0, SW0 = 58.2, PASS = 0.48, SW_OUT = SW0 + 3 * PASS, SW_END = 59.98;  // the broom
+const WET0 = 59.7, WETLEN = 0.5, DRY = 4.5;                                                   // the sprinkle
 const TAP0 = 0.15, TAP1 = 0.5;                                                              // the pulli
 const DRAW0 = 0.4, DRAW1 = 2.7;                                                             // the hand
 const FLOUR_RISE = 0.8;
@@ -91,7 +136,7 @@ const G = {
 };
 
 function drawGlyph(gl) {
-  const { ox, oy, S, rest, tau, head, rate } = G;
+  const { ox, oy, S, tau, head, rate } = G, rest = G.rest * S.mo;
   const A0 = S.A;
   // lens colours first, so the line lies over their edges
   if (G.fillT > 0) {
@@ -123,7 +168,7 @@ function drawGlyph(gl) {
         let fresh = 0, A = A0, wj = w[j];
         if (rest > 0) {
           const age = tau - (sj / L) * 0.55;
-          if (age >= 0 && age < 0.4) fresh = (1 - age / 0.4) * rest;
+          if (age >= 0 && age < 0.4) fresh = (1 - age / 0.4) * G.rest;
           const dd = sj > sf ? sj - sf : sf - sj;
           // the lenses breathe in a wave along the line, and the beat's front swells them
           A += rest * ((dd < 8 ? (1 - dd / 8) * 1.0 : 0) + 0.6 * sin(6.2832 * (sj * LAM - G.sec)));
@@ -152,7 +197,9 @@ function drawGlyph(gl) {
     const tt = G.tap - 0.35 * ((hash(dt.k, G.slot, 7) & 255) / 255);
     if (tt < 0) continue;
     const x = Math.floor(ox + dt.x - (S.dot - 1) * 0.5), y = Math.floor(oy + dt.y - (S.dot - 1) * 0.5);
-    const pop = tt < 0.18;
+    // a dot also flares as the beat's re-sprinkle front passes it
+    const age = tau - (dt.s / st.L) * 0.55;
+    const pop = tt < 0.18 || (G.rest > 0.5 && age >= 0 && age < 0.16);
     for (let yy = 0; yy < S.dot; yy++) for (let xx = 0; xx < S.dot; xx++) put((y + yy) * W + x + xx, y + yy, pop ? I.FRESH : I.DOT);
     if (pop) for (const [dx, dy] of [[-1, 0], [S.dot, 0], [0, -1], [0, S.dot]]) put((y + dy) * W + x + dx, y + dy, I.BRIGHT);
   }
@@ -193,13 +240,13 @@ function wetField(mk) {
       d = Math.min(d, Math.max(ex, ey * 1.3));
     }
     const i = y * W + x;
-    let v = (1 - d / 22) * 210 + (FINE[i] - 128) * 0.7 + 30;
+    let v = (1 - d / 15) * 210 + (FINE[i] - 128) * 0.7 + 30;
     if (hour) v = Math.max(v, 150 + (FINE[i] - 128) * 0.8);
     f[i] = clamp(Math.round(v), 0, 255);
   }
   ops += N * 6;
   WETS.set(mk, f);
-  if (WETS.size > 3) WETS.delete(WETS.keys().next().value);
+  if (WETS.size > 2) WETS.delete(WETS.keys().next().value);
   return f;
 }
 
@@ -223,7 +270,7 @@ function moat(mk, digits) {
   }
   for (const cy of COLON_Y) for (let y = cy - 6; y <= cy + 6; y++) for (let x = COLON_X - 6; x <= COLON_X + 6; x++) if ((x - COLON_X) ** 2 + (y - cy) ** 2 < 30) m[y * W + x] = 1;
   MOATS.set(mk, m);
-  if (MOATS.size > 2) MOATS.delete(MOATS.keys().next().value);
+  if (MOATS.size > 1) MOATS.delete(MOATS.keys().next().value);
   return m;
 }
 
@@ -271,7 +318,7 @@ function broom(g, sl, S, tip, dir, nt) {
 // ------------------------------------------------------------ the face
 export default {
   name: 'Kolam',
-  blurb: 'Draft.',
+  blurb: 'The time is a rice-flour kolam on a damp doorstep: lines weave round pulli and breathe; a broom sweeps, a hand redraws; a festival rangoli blooms at the hour.',
   fps: 60,
   frame(g, ctx) {
     const f = ctx.fields, s = f.sec, mk = f.minuteKey, nt = ctx.night;
@@ -308,18 +355,12 @@ export default {
       G.tau = tau; G.fillT = -1; G.fillFade = 0; G.fill4 = false;
       THR = null; DLO = 0;
       // the old kolam's dust, just after the turn
-      if (pd[k] !== cur[k] && s < DUST_END) {
-        THR = THR_ROWS; THR_ROWS.fill(256); DLO = 186 + 70 * (s / DUST_END);
-        G.rest = 0; G.head = 1e9; G.tap = 1e9;
-        drawGlyph(GLYPH[sl.z][+pd[k]]);
-        THR = null; DLO = 0;
-      }
       const gl = GLYPH[sl.z][+cur[k]];
       const fresh = pd[k] !== cur[k] && s < DRAW1 + 1;
       const leaving = nd[k] !== cur[k] && s >= SW0;
       if (fresh) {
         G.tap = s - TAP0;
-        const u = ease.inOutSine ? ease.inOutSine(progress(s, DRAW0, DRAW1)) : ease.inOutQuad(progress(s, DRAW0, DRAW1));
+        const u = sineE(progress(s, DRAW0, DRAW1));
         G.head = s < DRAW1 ? u * gl.T : 1e9;
         G.rate = gl.T / (DRAW1 - DRAW0);
         G.rest = progress(s, DRAW1, DRAW1 + FLOUR_RISE);
@@ -336,7 +377,7 @@ export default {
       }
       if (leaving) {
         THR = THR_ROWS;
-        const p = Math.floor((s - SW0) / PASS), lp = ease.inOutSine ? ease.inOutSine(progress(s - SW0 - p * PASS, 0, PASS)) : progress(s - SW0 - p * PASS, 0, PASS);
+        const p = Math.floor((s - SW0) / PASS), lp = sineE(progress(s - SW0 - p * PASS, 0, PASS));
         const top = sl.y - 3, bot = sl.y + S.h + 3;
         let tip;
         if (s < SW_OUT) {
@@ -348,8 +389,9 @@ export default {
           }
           actors.push([1, k, tip, up ? 1 : -1]);
         } else {
-          THR_ROWS.fill(256);
-          tip = top - (top + 45) * ease.inQuad(progress(s, SW_OUT, SW_END));
+          // the last of the dust is flicked away before the minute turns
+          THR_ROWS.fill(256); DLO = 186 + 70 * progress(s, SW_OUT, SW_END - 0.05);
+          tip = top - (top + 75) * sineE(progress(s, SW_OUT, SW_END));
           if (s < SW_END) actors.push([1, k, tip, 1]);
         }
         G.rest = 1;

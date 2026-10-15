@@ -24,12 +24,12 @@ const LG = { tog: [3, 0], wide: [15, 0], knee: [5, 1], kick: [54, 0], hi: [70, 0
 const K = (aL, aR, lL, lR, b = {}) => ({ aL: A[aL], aR: A[aR], lL: LG[lL], lR: LG[lR], hop: b.hop ?? 0, sway: b.sway ?? 0, lean: b.lean ?? 0, bob: b.bob ?? 1.8, reach: b.reach ?? 0 });
 
 export const MOVES = {
-  jacks: [K('V', 'V', 'wide', 'wide', { hop: 3 }), K('dn', 'dn', 'tog', 'tog', { hop: 3 })],
+  jacks: [K('V', 'V', 'wide', 'wide', { hop: 4.5 }), K('dn', 'dn', 'tog', 'tog', { hop: 4.5 })],
   march: [K('dn', 'curl', 'knee', 'tog', { bob: 2 }), K('curl', 'dn', 'tog', 'knee', { bob: 2 })],
   step: [K('gp', 'gp', 'step', 'tog', { sway: -2 }), K('clap', 'clap', 'tog', 'step', { sway: 2 })],
   reach: [K('hip', 'up', 'wide', 'wide', { lean: -1.6, sway: -1 }), K('hip', 'up', 'wide', 'wide', { lean: -1.8, sway: -1, bob: 2 }),
     K('up', 'hip', 'wide', 'wide', { lean: 1.6, sway: 1 }), K('up', 'hip', 'wide', 'wide', { lean: 1.8, sway: 1, bob: 2 })],
-  kick: [K('gp', 'gp', 'kick', 'tog', { hop: 1 }), K('V', 'V', 'tog', 'tog'), K('gp', 'gp', 'tog', 'kick', { hop: 1 }), K('V', 'V', 'tog', 'tog')],
+  kick: [K('gp', 'gp', 'kick', 'tog', { hop: 2 }), K('V', 'V', 'tog', 'tog'), K('gp', 'gp', 'tog', 'kick', { hop: 2 }), K('V', 'V', 'tog', 'tog')],
   punch: [K('up', 'pump', 'step', 'tog', { sway: -1 }), K('pump', 'up', 'tog', 'step', { sway: 1 })],
   goal: [K('gp', 'gp', 'knee', 'tog'), K('up', 'up', 'tog', 'tog', { reach: 1 }), K('gp', 'gp', 'tog', 'knee'), K('up', 'up', 'tog', 'tog', { reach: 1 })],
   ham: [K('V', 'V', 'heel', 'tog', { sway: 1 }), K('curl', 'curl', 'tog', 'tog'), K('V', 'V', 'tog', 'heel', { sway: -1 }), K('curl', 'curl', 'tog', 'tog')],
@@ -86,7 +86,7 @@ export function perform(P, name, c, p, prevName = name, slow = false) {
 export function paint(cos, f, bg) {
   const m = (c) => (f > 0 ? mixc(c, bg, f) : c);
   const o = { top: m(cos.top), belt: m(cos.belt), tights: m(mixc(cos.skin, cos.tights, 0.18)), warm: m(cos.warm), rib: m(cos.rib), hair: m(cos.hair), skin: m(cos.skin), ink: m(INK), shoe: m(SHOE), shoeD: m(SHOE_D), style: cos.style };
-  o.top5 = to565(o.top); o.belt5 = to565(o.belt); o.tights5 = to565(o.tights); o.ink5 = to565(o.ink);
+  o.top5 = to565(o.top); o.belt5 = to565(o.belt);
   return o;
 }
 

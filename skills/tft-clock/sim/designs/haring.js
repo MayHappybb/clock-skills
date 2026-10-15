@@ -42,9 +42,9 @@
 // of each dancer's box; limbs, marks and actors are kit capsules and class
 // maps; the wall is two 1-bit doodle maps (3.2 KB as bits). No caches and no
 // scratch frame: every frame is built cold from the time.
-import { clockFields, hash, sin, cos, progress, ease, to565 } from '../js/kit.js';
-import { body, hips, head, shoulders, limbs, at } from './haring-cast.js';
-import { BLACK, WHITE, wallFor, PARTY, PARTY_NIGHT, c565, paintWall, stamp, DOG, BABY, HEART } from './haring-art.js';
+import { clockFields, hash, sin, cos, ease, to565 } from '../js/kit.js';
+import { body, hips, head, shoulders, limbs } from './haring-cast.js';
+import { BLACK, wallFor, PARTY, PARTY_NIGHT, c565, paintWall, stamp, DOG, BABY, HEART } from './haring-art.js';
 
 const W = 160, H = 80;
 const SLOT = [18, 52, 108, 142];

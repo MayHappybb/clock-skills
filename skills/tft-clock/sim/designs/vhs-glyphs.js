@@ -4,8 +4,8 @@
 // letter: Pump / Bauhaus weight, round terminals, open counters of at least
 // 6 x 7 px), 20 x 36 px with a 6.5 px stroke. It is drawn as a skeleton of
 // segments and arcs, and stored as a distance field (Int8, 1/8 px, flash) that
-// vhs.js samples under each frame's pose: squash, lean, hop. The leotard is
-// split at the waist (GW_BELT) into top colour, belt and tights.
+// vhs.js samples under each frame's pose: squash, lean, hop. A belt band
+// (BELT0..BELT1) is cinched round the leotard's waist.
 //
 // Per digit it also gives where the person attaches: the neck (head), the
 // hips (legs) and the shoulders (arms), in glyph units.

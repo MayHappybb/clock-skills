@@ -1,10 +1,10 @@
 // VHS art: palettes, costumes, the VCR's on-screen font, and the studio set
 // (vhs.js).
 //
-// The studio is a 1980s TV-gym set as it was taped: a blue-violet cyclorama
-// with a fine grid and three Memphis cut-outs (all near the wall's own
-// brightness, so they stay calm), a maroon sprung floor whose boards run to
-// the camera, a boombox on the floor between the hours and the minutes.
+// The studio is a 1980s TV-gym set as it was taped: a seamless blue-violet
+// cyclorama (wall and floor one sweep of colour), a row of marquee bulbs
+// along its top, a boombox on the floor between the hours and the minutes,
+// and for the hour's cool-down a striped sunset.
 // Everything here is drawn clean; vhs-tape.js wears it.
 import { to565, sprite, hash } from '../js/kit.js';
 
@@ -41,10 +41,10 @@ export function mixc(a, b, u) {
 
 // the set, by day and by night (the studio lights down)
 export const SET = {
-  day: { spot: 0x3a3070, spot2: 0x463478, wall: 0x2e2a60, wall2: 0x262252, grid: 0x38347a, tri: 0x4a3470, disc: 0x23466a, zig: 0x5a4c48, floor: 0x5a3446, floor2: 0x6a3e50, board: 0x4a2a3c, base: 0x1a1434, glow: 0x6a3a7a },
-  night: { spot: 0x1c1844, spot2: 0x221a4a, wall: 0x16143a, wall2: 0x121030, grid: 0x1c1a48, tri: 0x22183c, disc: 0x13243c, zig: 0x2a2430, floor: 0x2c1a2a, floor2: 0x341e30, board: 0x24141f, base: 0x0c0a1c, glow: 0x30204a },
+  day: { wall: 0x2e2a60 },
+  night: { wall: 0x16143a },
   // the hour's cool-down: the studio goes to sunset
-  dusk: { spot: 0x5a2660, spot2: 0x6a2a64, wall: 0x4a2058, wall2: 0x5c2450, grid: 0x5a2a68, tri: 0x6a2a5e, disc: 0x5a2a5a, zig: 0x6a3a50, floor: 0x5a2a3a, floor2: 0x6a3244, board: 0x48202e, base: 0x2a1030, glow: 0x8a3a6a },
+  dusk: { wall: 0x4a2058 },
 };
 export const SUN = [0xffe86a, 0xffb84a, 0xff7a5a, 0xff4a8a];
 
@@ -117,7 +117,7 @@ export function osdText(g, str, x, y, c, edge, a = 1) {
 // ------------------------------------------------------------ the set
 
 /**
- * The cyclorama, its Memphis cut-outs and the floor, for one palette. `y0..y1`
+ * The cyclorama for one palette. `y0..y1`
  * limits the rows (the hour's blinds wipe draws two sets in alternate bands).
  * `sun` (0..1) is how far the cool-down sun has risen behind the class.
  */
@@ -163,23 +163,22 @@ function sunset(g, u, T) {
  * dances (`c` the count, `p` its phase).
  */
 export function boombox(g, kick, c, p, night) {
-  const x = 69, y = 63, body = night ? 0x2a2a34 : 0x3a3a48, trim = night ? 0x6a6a7a : 0x9a9aac, cone = 0x16141e;
+  const x = 71, y = 66, body = night ? 0x2a2a34 : 0x3a3a48, trim = night ? 0x6a6a7a : 0x9a9aac, cone = 0x16141e;
   const bob = kick > 0.5 ? 1 : 0;
-  g.fillRect(x + 5, y - 3 + bob, 12, 1, trim);
-  g.fillRect(x + 5, y - 3 + bob, 1, 3, trim);
-  g.fillRect(x + 16, y - 3 + bob, 1, 3, trim);
-  g.fillRect(x, y + bob, 22, 12 - bob, body);
-  g.fillRect(x, y + bob, 22, 1, trim);
-  for (const sx of [x + 4.5, x + 17.5]) {
-    g.fillCircle(sx, y + 6.5, 3.8, trim);
-    g.fillCircle(sx, y + 6.5, 3.0, cone);
-    g.fillCircle(sx, y + 6.5, 0.8 + 2.2 * kick, trim);
+  g.fillRect(x + 4, y - 2 + bob, 10, 1, trim);
+  g.fillRect(x + 4, y - 2 + bob, 1, 2, trim);
+  g.fillRect(x + 13, y - 2 + bob, 1, 2, trim);
+  g.fillRect(x, y + bob, 18, 9 - bob, body);
+  g.fillRect(x, y + bob, 18, 1, trim);
+  for (const sx of [x + 3.5, x + 14.5]) {
+    g.fillCircle(sx, y + 5, 3.1, trim);
+    g.fillCircle(sx, y + 5, 2.4, cone);
+    g.fillCircle(sx, y + 5, 0.6 + 1.8 * kick, trim);
   }
-  // the equaliser: five bars, a new level each count, falling through it
+  // the equaliser: four bars, a new level each count, falling through it
   const eq = night ? 0x6a8a4a : 0x9ce05a, pk = night ? 0x9a5a3a : 0xff7a3a;
-  for (let k = 0; k < 5; k++) {
-    const lv = 2 + ((hash(c, k, 3) % 6)) * (1 - 0.6 * p);
-    const hgt = Math.max(1, Math.round(lv));
-    g.fillRect(x + 8 + k * 1.3, y + 10 - hgt, 1, hgt, hgt > 5 ? pk : eq);
+  for (let k = 0; k < 4; k++) {
+    const hgt = Math.max(1, Math.round((1 + (hash(c, k, 3) % 5)) * (1 - 0.6 * p)));
+    g.fillRect(x + 7 + k, y + 8 - hgt, 1, hgt, hgt > 4 ? pk : eq);
   }
 }

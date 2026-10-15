@@ -5,14 +5,16 @@
 // in tights, scrunched leg warmers and white high-tops underneath. Ten
 // numerals, ten instructors, each in their own costume. The class works out
 // behind them, half a count late; a boombox pumps the beat on the floor
-// between the hours and the minutes.
+// between the hours and the minutes, and the TV set's marquee bulbs chase
+// along the top of the cyc, one bulb a count.
 //
 // The time is never still: the routine is counted two counts a second in
 // phrases of eight (jumping jacks, march with curls, step-touch and clap,
 // side reach, kicks, punches, goal-post knees, hamstring curls): every count
-// each body snaps into its next pose and holds, hops, dips, sways and leans
-// (the numeral shears, never turns), squashes on the landing, its ponytail
-// swinging. And the tape is never still: rows wander sideways, the top
+// each body snaps into its next pose and holds, hops (up to 4.5 px), dips
+// 2 px on the count, leans (the numeral shears, never turns) and squashes on
+// the landing, while under every move the whole body rocks 4 px side to
+// side over two counts; ponytails swing, mouths call the count. And the tape is never still: rows wander sideways, the top
 // rows bend, a thin band of tracking noise rolls up through the picture,
 // the head-switching seam frays the bottom rows. Flourishes: a kick line at
 // :12 and :48; at :24 the tape is PAUSED on a held pose (the still frame
@@ -28,15 +30,16 @@
 // the class, and the whole class and the four instructors hold slow
 // stretches together, the time reading all along.
 //
-// Palette: what a taped TV gym looked like: a blue-violet cyclorama and a
-// maroon floor kept dark and calm, Memphis cut-outs only a step off the
-// wall, and loud leotard brights (hot pink, cyan, lemon, lime, violet) that
-// are the only strong colours, so the time is the strongest contrast. Then
-// the tape wears it all (vhs-tape.js): colour bleeds late to the right of
-// its edges, blacks lift to grey, whites soften, fine grain. The VCR's own
-// OSD is drawn after the tape, crisp, as a VCR keys it in. Hard pixels
-// throughout: the softness is the tape's. Night: the studio lights go down
-// (a darker set), the backlight dims.
+// Palette: what a taped TV gym looked like: one seamless blue-violet cyc
+// (wall and floor one sweep, kept dark and calm), dim class leotards, and
+// loud leotard brights (hot pink, cyan, lemon, lime, violet, coral, mint)
+// that are the only strong colours, so the time is the strongest contrast.
+// Then the tape wears it all (vhs-tape.js): colour bleeds late to the right
+// of its edges (the numerals' only outline is that soft fringe), blacks lift
+// to grey, whites soften, odd field lines dim. The VCR's own OSD is drawn
+// after the tape, crisp, as a VCR keys it in. Hard pixels throughout: the
+// softness is the tape's. Night: the studio lights go down (a near-black
+// cyc, the class barely lit), the backlight dims to 45 %.
 //
 // Cost: bodies are sampled from ten 26 x 42 distance fields (Int8, 11 KB
 // flash) per pixel of each body box; limbs and heads are kit shapes; the
@@ -59,7 +62,7 @@ const CLASS_C = [
 const PAUSE0 = 23.75, PD = 1.5;     // the pause: held from :23.75 for 1.5 s
 const FF0 = 58, FFD = 3, FFK = 1 + (4 + PD) / FFD;   // the cue: :58 to :01, fast enough to make up a phrase and the pause
 
-const POSES = Array.from({ length: 4 }, newPose), CPOSE = newPose(), CPOSE2 = newPose();
+const POSES = Array.from({ length: 4 }, newPose), CPOSE = newPose();
 
 /** Tape time: the wall clock, held by the pause and run ahead by the cue (continuous across minutes). */
 function tapeTime(mk, s) {
@@ -165,7 +168,7 @@ export default {
         const c3 = c2 - dl, cn = Math.floor(c3);
         perform(P, 'kickline', cn, c3 - cn, cn === c ? mvPrev : 'kickline');
       } else perform(P, mv, c, p, mvPrev, slow);
-      const C = paint(COSTUME[q.d], q.fade * (night >= 0.5 ? 1 : 1), wallNow);
+      const C = paint(COSTUME[q.d], q.fade, wallNow);
       instructor(g, q.d, SLOT_X[q.i] + (1 - q.sc) * (q.i < 2 ? 4 : -4), q.fl, q.sc, P, C, q.i);
     }
 
@@ -182,8 +185,8 @@ export default {
     // ---- the tape
     const bands = [];
     // the worn tape's own band, always rolling up
-    const ry = 86 - ((T * 7) % 110);
-    bands.push(band(Math.round(ry), 3, 1.6, 0.25));
+    const ry = 86 - ((T * 13) % 120);
+    bands.push(band(Math.round(ry), 4, 2.6, 0.3));
     if (cue) {
       const w = s >= FF0 ? s - FF0 : s + 60 - FF0, env = sm(progress(w, 0, 0.2)) * (1 - sm(progress(w, FFD - 0.3, FFD)));
       for (let k = 0; k < 2; k++) {

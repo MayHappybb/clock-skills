@@ -2,6 +2,8 @@
 
 Backup of the Claude Code skills for designing clock faces, with every face design.
 
+Browse the faces in the simulators: https://mayhappybb.github.io/clock-skills/
+
 | Skill | Display | Designs |
 |---|---|---|
 | `skills/1602-clock` | 16x2 character LCD (HD44780) | `sim/designs/` |

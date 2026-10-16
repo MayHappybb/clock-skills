@@ -48,6 +48,20 @@ import tesla from './tesla.js';
 import dominoes from './dominoes.js';
 import knots from './knots.js';
 
+// round 15 (2026-10-15), 60 fps, fluent transitions, themed fonts, vivid (12 faces)
+import lavalamp from './lavalamp.js';
+import glassblower from './glassblower.js';
+import octopus from './octopus.js';
+import popupbook from './popupbook.js';
+import dachshund from './dachshund.js';
+import beadmaze from './beadmaze.js';
+import calder from './calder.js';
+import taffy from './taffy.js';
+import foggedglass from './foggedglass.js';
+import ribbon from './ribbon.js';
+import softserve from './softserve.js';
+import geoboard from './geoboard.js';
+
 // round 14 (2026-10-15), 60 fps, fluent transitions, themed fonts, vivid
 import origami from './origami.js';
 import slinky from './slinky.js';
@@ -145,6 +159,19 @@ import specimen from './specimen.js';
 import testcard from './testcard.js';
 
 export default {
+  // round 15
+  lavalamp,
+  glassblower,
+  octopus,
+  popupbook,
+  dachshund,
+  beadmaze,
+  calder,
+  taffy,
+  foggedglass,
+  ribbon,
+  softserve,
+  geoboard,
   // round 14
   origami,
   slinky,

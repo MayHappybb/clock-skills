@@ -48,6 +48,32 @@ import tesla from './tesla.js';
 import dominoes from './dominoes.js';
 import knots from './knots.js';
 
+// round 18 (2026-10-16), free brief, 24 more
+import abacus from './abacus.js';
+import othello from './othello.js';
+import skating from './skating.js';
+import incense from './incense.js';
+import suisong from './suisong.js';
+import ouija from './ouija.js';
+import tarot from './tarot.js';
+import eightball from './eightball.js';
+import vitals from './vitals.js';
+import karesansui from './karesansui.js';
+import claymation from './claymation.js';
+import marionette from './marionette.js';
+import nightrain from './nightrain.js';
+import plankton from './plankton.js';
+import receipt from './receipt.js';
+import fridge from './fridge.js';
+import flags from './flags.js';
+import cubism from './cubism.js';
+import memphis from './memphis.js';
+import lighthouse from './lighthouse.js';
+import lego from './lego.js';
+import cctv from './cctv.js';
+import ferriswheel from './ferriswheel.js';
+import vinyl from './vinyl.js';
+
 // round 17 (2026-10-16), free brief, 16 more
 import sundial from './sundial.js';
 import shufa from './shufa.js';
@@ -187,6 +213,31 @@ import specimen from './specimen.js';
 import testcard from './testcard.js';
 
 export default {
+  // round 18
+  abacus,
+  othello,
+  skating,
+  incense,
+  suisong,
+  ouija,
+  tarot,
+  eightball,
+  vitals,
+  karesansui,
+  claymation,
+  marionette,
+  nightrain,
+  plankton,
+  receipt,
+  fridge,
+  flags,
+  cubism,
+  memphis,
+  lighthouse,
+  lego,
+  cctv,
+  ferriswheel,
+  vinyl,
   // round 17
   sundial,
   shufa,

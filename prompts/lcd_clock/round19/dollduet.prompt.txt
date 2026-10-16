@@ -1,0 +1,95 @@
+Design ONE clock face with the tft-clock skill, in
+/Users/bilibili/coding/lcd_clock/.claude/skills/tft-clock (run every command
+from that directory). Key: 'dollduet'.
+
+The display: a 0.96" IPS colour LCD, 160 x 80 px, RGB565, 60 fps possible.
+
+THE OWNER'S REQUEST, VERBATIM: "could you make some faces for my two dolls,
+I have photos of them". The two dolls are plush toys: a floppy black-and-tan
+puppy and a shaggy panda. This face stars them. The whole point is that the
+owner looks at it and recognises THEIR two toys, so likeness matters as much
+as the idea: get the silhouettes, proportions, colour blocks and fur right,
+and draw at least one of them big enough that those traits read on the glass
+(roughly 30+ px tall). They are soft toys with personality, not real
+animals. Make them lovable and give them a little life of their own.
+
+THE DOLLS (from five photos, which I looked at; you cannot see images):
+
+THE PUPPY: a small, hand-sized floppy plush puppy in rottweiler colours,
+a beanbag body that can't stand stiffly: it lies flat with its four legs
+splayed out and its head resting on its front paws, and droops over a hand
+when held.
+- Head: wide and slightly flattened. Black on top and back. Two big soft
+  black ears hang down either side of the face, long and rounded, reaching
+  below the jaw. The lower half of the face is a wide, puffy tan muzzle
+  (round cheeks, like a fat crescent). A small rounded-triangle nose of
+  matte dark-brown felt sits in the middle of the tan. Two tiny shiny black
+  bead eyes sit close together, high, just above the muzzle, with a tiny
+  tan eyebrow dot above each.
+- Body: black back and sides, tan chest and belly (a long tan oval seen
+  from below), four stubby rounded tan mitten paws, no toes, no visible
+  tail. Short, soft, slightly fuzzy plush. A small lavender sewn-in tag on
+  the belly and one paw.
+- Colours (sampled): tan #b8781a (lit #e0a040, shaded #845618); black
+  #161412; nose #5a3a22; tag lavender #9a7ad8.
+
+THE PANDA: a taller shaggy panda that sits upright, slightly slumped, legs
+stuck straight out in front.
+- Fur: long curly looped pile, frizzy and ragged at every edge, never a
+  smooth outline.
+- Head: big and round, cream white. Two round black shaggy ears on the top
+  corners. The black eye patches are the key trait: large, slanting
+  teardrops that droop outward and down from the bridge of the nose, giving
+  a gentle, sleepy-sad look; the eyes themselves are lost inside the
+  patches. A small black rounded nose low in the white face.
+- Body: a black band across the shoulders that runs into two black arms
+  hanging at its sides (like a shawl), a cream heart-shaped belly, and two
+  black legs pointing forward with big round black feet.
+- Colours (sampled): cream #efeadf (shaded #d2cbbc); black #141418.
+
+Reference photos as small BMPs (144 x 192) are in
+/Users/bilibili/coding/lcd_clock/prompts/round19/ref/ (IMG_8394 puppy belly
+side, laid flat with legs splayed; IMG_8396 puppy face-on, drooping over a
+hand; IMG_8397 puppy side view; IMG_8398 panda sitting, front; IMG_8399
+panda sitting, side). Inspect them as text with
+  node /Users/bilibili/coding/lcd_clock/prompts/round19/ref/view.mjs IMG_8398.bmp
+  node .../view.mjs IMG_8398.bmp --pick x,y,w,h      (average colour of a box)
+The maps are coarse; trust the description above for shapes.
+
+Everything else is yours: the visual style and rendering technique, the
+composition, the camera, the story, the rhythm, the palette, and how the
+time is shown (digits, words, positions, objects, something new). Be bold.
+It is still a clock: someone should be able to read the time, and it must
+never show a wrong time mid-change (missing or half-built is fine).
+
+Your starting spark (take it, twist it, or replace it with something
+better that still stars these two):
+The two of them together as a double act: a game, a sport, a chase or a show between the floppy puppy and the shaggy panda (hours versus minutes, or partners), with real comic timing.
+
+The other agents this round, each making a different face for the same two
+dolls: dollbed, dollquilt, dollclaw, dollpet, dollwash. Don't converge on their territory. 174 faces already exist,
+including one where numerals are dachshund bodies; don't make the dolls'
+bodies into numerals.
+
+Practicalities (facts, not design rules):
+- Read SKILL.md first; the API is in sim/js/gfx.js and sim/js/kit.js.
+- Edit only sim/designs/dollduet.js (already registered as a placeholder; give
+  it a real name and blurb) plus any helpers sim/designs/dollduet-*.js. Write
+  only out/dollduet*. Keep your file importable at all times (every tool loads
+  every design). Don't touch shared files or other designs; render
+  sequentially; prefix any temp files with your key.
+- frame() must be a pure function of time (see SKILL.md), and
+  `node tools/check.mjs --design dollduet` should pass, so it runs on the real
+  device (its esp32c3 estimate is the budget).
+- You cannot see PNGs here (Read returns nothing for images). Inspect frames
+  as text: node tools/frame.mjs dollduet --clock HH:MM:SS.s --map --half
+  (or --crop x,y,w,h). Check the dolls' likeness in exact-pixel crops
+  (--crop over each doll) against the description, trait by trait. The
+  owner looks at the images, so render: out/dollduet.png, out/dollduet-turn.png
+  (a --sheet across a minute turn), out/dollduet.gif (--clock 10:09:57
+  --frames 150 --duration 3 --gif --px 4), out/dollduet-hour.gif at 10:59:57,
+  and anything else that shows it off.
+- Work alone (no subagents).
+
+Report: the idea, how to read the time, how each doll is drawn and what of
+it you verified, the check.mjs result, and the honest weakest point.

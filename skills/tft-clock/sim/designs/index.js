@@ -48,6 +48,14 @@ import tesla from './tesla.js';
 import dominoes from './dominoes.js';
 import knots from './knots.js';
 
+// round 19 (2026-10-16), the owner's two dolls (puppy + panda)
+import dollbed from './dollbed.js';
+import dollduet from './dollduet.js';
+import dollquilt from './dollquilt.js';
+import dollclaw from './dollclaw.js';
+import dollpet from './dollpet.js';
+import dollwash from './dollwash.js';
+
 // round 18 (2026-10-16), free brief, 24 more
 import abacus from './abacus.js';
 import othello from './othello.js';
@@ -213,6 +221,13 @@ import specimen from './specimen.js';
 import testcard from './testcard.js';
 
 export default {
+  // round 19
+  dollbed,
+  dollduet,
+  dollquilt,
+  dollclaw,
+  dollpet,
+  dollwash,
   // round 18
   abacus,
   othello,

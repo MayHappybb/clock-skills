@@ -7,6 +7,8 @@
 // tool down with it.
 
 const KEYS = [
+  // round 13 (2026-10-16): 8 faces, 'unleash all your creativity'
+  'stringart', 'xray', 'ropeknot', 'galton', 'cootie', 'labyrinth', 'plasticine', 'spintops',
   // round 12 (2026-10-04): 4 real-3D faces, after cube
   'kineticrain', 'trivision', 'balloon', 'ribbon',
   // round 11 (2026-10-04): 8 opus faces, imaginative + fluent + designed letterforms

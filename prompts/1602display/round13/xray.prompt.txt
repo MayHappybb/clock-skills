@@ -1,0 +1,75 @@
+Design ONE clock face for a monochrome 096-128x64 OLED with the oled-clock skill
+(.claude/skills/oled-clock). Read SKILL.md and references/gotchas.md first.
+Edit only sim/designs/xray.js (already registered as a placeholder; give it a
+real name and blurb). Don't touch other designs, index.js or sim/js/, and don't
+render other designs.
+
+Starting idea (push past it, or replace it if you find something stronger):
+Airport security X-ray. Bags glide along a conveyor through the scanner tunnel. Inside the tunnel the screen shows the X-ray view: each suitcase's contents (keys, a rubber duck, scissors, a hair dryer, a phone, cables) are drawn in outline and dithered density, and the objects inside are arranged so that their silhouettes ARE the numerals. The belt is always moving slowly, the scanner beam sweeps. Minute turn: the bag holding the old digit rolls out, the next bag rolls in with its contents packed as the new digit, revealed by the beam as it enters. Hour: an alarm, the bag is opened and the contents spill and repack as the new hour.
+
+GOAL: a stranger looks at it and says "wait, that's a clock?" Creativity comes
+first. A competent, pretty, conventional face is a fail. The bar to beat is
+scope, cube, numberfolk, nixie and urwerk.
+
+REQUIREMENTS
+1. Concept: the time is expressed by the theme's own mechanism. Test: if
+   swapping your digits for a plain bitmap font still works, the digits are not
+   part of the idea yet.
+2. Letterforms: draw your own, made of or carried by the theme's material. No
+   kit fonts (font5x7, font3x5, strokeDigit, segDigit, dotText) for the time.
+   Design all ten digits as a set. Any date or label speaks the same visual
+   language, or leave it out.
+3. Layout: never four digits in a row, with or without decoration around
+   them; that is the default every weak face falls back to. Use a scene,
+   depth, a dial, a mechanism, hours and minutes as different systems.
+4. Always alive: smooth 60 fps sub-pixel motion that belongs to the theme,
+   every second, not only at the turn.
+5. Minute turn: the old digit physically becomes the new one through the
+   theme's process, 0.8-3 s, eased, no pops or cuts. Never show a wrong time.
+   The hour gets a bigger, distinct show.
+6. Composition: one hero, one or two supporting elements, a designed
+   background, plenty of black. It must read at 1x: no tiny glyphs, no noise
+   as texture. Every element belongs to the same world.
+7. Characters, if any, are carefully hand-drawn (sprites beat formulas at this
+   size) and interact with the time.
+8. Technical: frame() is a pure function of time; `node tools/check.mjs
+   --design xray` passes; frame() under ~2 ms. No hidden extra features.
+
+PROCESS
+1. Pitch three very different concepts, none like an existing design
+   (`node tools/render.mjs --list`). Pick the strongest, judging harshly.
+2. Digits first: render out/xray-digits.png and iterate until every digit is
+   beautiful on its own.
+3. Build, then render out/xray.png, out/xray-turn.png (--sheet across
+   10:09:58), out/xray-hour.png (--sheet across 10:59:58), out/xray.gif and
+   out/xray-hour.gif. Look at every image.
+4. Ask: is the font, layout, motion or transition ordinary? Is it fascinating?
+   Fix the weakest part and re-render. At least two rounds.
+5. Report: the idea in one sentence, render paths, the check.mjs result, and
+   the honest weakest point.
+
+Lessons from rounds 10-12 (24 faces): textured plain letterforms are not
+enough, the letterform is designed for the theme; no speckle (scattered
+single pixels) as shading or texture, it reads as noise at 1x; solid contour
+lines beat hatching; the hour show must keep the time readable (blank for
+more than ~1 s is a fail); "four digits in a row" kept sneaking back in
+(popcorn read "10 09" in a row): compose a scene; characters and props at
+1x must be bold, simple silhouettes. If the face is 3D, look at
+sim/designs/cube.js: real geometry, perspective, shading by facing, correct
+occlusion, always moving so the depth is felt. Keep frame() under ~2 ms.
+
+THIS ROUND (2026-10-16): the owner asked for 8 new faces per display (1602,
+12864 OLED, HUB75), built in parallel, and said: "unleash all your
+creativity, make them all very amazing". So the bar is the best face in the
+gallery, not a good one. Push the starting idea further: find the one
+surprising, delightful moment that makes someone laugh or gasp, and make the
+time at rest belong to the theme, not only the turns.
+Don't add the owner's avatar or any recurring mascot (no frog): characters,
+if any, belong to the theme.
+
+Work alone: don't spawn subagents. About 23 other agents are building other
+faces in parallel on this machine (8 cores), so only ever write to your own
+files and out/xray*, render sequentially, and keep tool output short (pipe
+big outputs through head/tail, read files in focused slices, look at renders
+rather than dumping numbers). The owner's API quota has run out mid-round
+before: be economical, but finish.

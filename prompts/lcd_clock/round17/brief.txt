@@ -1,0 +1,52 @@
+Design ONE clock face with the tft-clock skill, in
+/Users/bilibili/coding/lcd_clock/.claude/skills/tft-clock (run every command
+from that directory). Key: '{KEY}'.
+
+The display: a 0.96" IPS colour LCD, 160 x 80 px, RGB565, 60 fps possible.
+
+THE OWNER'S REQUEST, VERBATIM: "it seems the recently created faces are all
+in very similar style, could you create 8 more with different styles? no
+need to follow any requirements I or previous design prompts give, just
+unleash all your creativity and make amazing faces, feel free to be
+adventurous."
+
+What they mean by "similar": the last 12 faces all followed one formula:
+four numerals made of a theme's material standing in a row, flat fills with
+a dark keyline, a squash on a beat every second, flourishes at :15/:30/:45,
+the material reshaping itself at the minute. Break that formula. You decide
+everything: the visual style and rendering technique, the composition, the
+camera, the rhythm, the palette, whether the time is digits, words, hands,
+positions or something nobody has done. Be bold; a safe, pretty face is the
+failure here. It is still a clock, so someone looking at it should be able
+to find out the time, however unusual the way.
+
+Your starting spark (take it, twist it, or throw it away for something
+better):
+{SEED}
+
+After that round of 8 (droste, constructivist, lowpoly, lemmings, turing,
+orrery, magritte, desktop) the owner said: "this is wonderful and better,
+make 16 more". Don't repeat those eight either. The other fifteen agents
+this round: {OTHERS}. Don't converge on their territory.
+
+Practicalities (facts, not design rules):
+- Read SKILL.md first; the API is in sim/js/gfx.js and sim/js/kit.js.
+- Edit only sim/designs/{KEY}.js (already registered as a placeholder; give
+  it a real name and blurb) plus any helpers sim/designs/{KEY}-*.js. Write
+  only out/{KEY}*. Keep your file importable at all times (every tool loads
+  every design). Don't touch shared files or other designs; render
+  sequentially; prefix any temp files with your key.
+- frame() must be a pure function of time (see SKILL.md), and
+  `node tools/check.mjs --design {KEY}` should pass, so it runs on the real
+  device (its esp32c3 estimate is the budget).
+- You cannot see PNGs here (Read returns nothing for images). Inspect frames
+  as text: node tools/frame.mjs {KEY} --clock HH:MM:SS.s --map --half
+  (or --crop x,y,w,h). The owner looks at the images, so render:
+  out/{KEY}.png, out/{KEY}-turn.png (a --sheet across a minute turn),
+  out/{KEY}.gif (--clock 10:09:57 --frames 150 --duration 3 --gif --px 4),
+  and out/{KEY}-hour.gif at 10:59:57, plus anything else that shows it off.
+- No recurring mascot or the owner's avatar.
+- Work alone (no subagents).
+
+Report: the idea, how to read the time, what makes it different, the
+check.mjs result, and the honest weakest point.

@@ -48,6 +48,24 @@ import tesla from './tesla.js';
 import dominoes from './dominoes.js';
 import knots from './knots.js';
 
+// round 17 (2026-10-16), free brief, 16 more
+import sundial from './sundial.js';
+import shufa from './shufa.js';
+import crossword from './crossword.js';
+import pianola from './pianola.js';
+import datamosh from './datamosh.js';
+import isometric from './isometric.js';
+import fighter from './fighter.js';
+import bullethell from './bullethell.js';
+import snowglobe from './snowglobe.js';
+import rorschach from './rorschach.js';
+import saulbass from './saulbass.js';
+import synthwave from './synthwave.js';
+import kaleidoscope from './kaleidoscope.js';
+import flipbook from './flipbook.js';
+import tower from './tower.js';
+import rubegoldberg from './rubegoldberg.js';
+
 // round 16 (2026-10-16), free brief: different styles, adventurous
 import droste from './droste.js';
 import constructivist from './constructivist.js';
@@ -169,6 +187,23 @@ import specimen from './specimen.js';
 import testcard from './testcard.js';
 
 export default {
+  // round 17
+  sundial,
+  shufa,
+  crossword,
+  pianola,
+  datamosh,
+  isometric,
+  fighter,
+  bullethell,
+  snowglobe,
+  rorschach,
+  saulbass,
+  synthwave,
+  kaleidoscope,
+  flipbook,
+  tower,
+  rubegoldberg,
   // round 16
   droste,
   constructivist,

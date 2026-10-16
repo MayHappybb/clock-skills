@@ -48,6 +48,16 @@ import tesla from './tesla.js';
 import dominoes from './dominoes.js';
 import knots from './knots.js';
 
+// round 16 (2026-10-16), free brief: different styles, adventurous
+import droste from './droste.js';
+import constructivist from './constructivist.js';
+import lowpoly from './lowpoly.js';
+import lemmings from './lemmings.js';
+import turing from './turing.js';
+import orrery from './orrery.js';
+import magritte from './magritte.js';
+import desktop from './desktop.js';
+
 // round 15 (2026-10-15), 60 fps, fluent transitions, themed fonts, vivid (12 faces)
 import lavalamp from './lavalamp.js';
 import glassblower from './glassblower.js';
@@ -159,6 +169,15 @@ import specimen from './specimen.js';
 import testcard from './testcard.js';
 
 export default {
+  // round 16
+  droste,
+  constructivist,
+  lowpoly,
+  lemmings,
+  turing,
+  orrery,
+  magritte,
+  desktop,
   // round 15
   lavalamp,
   glassblower,

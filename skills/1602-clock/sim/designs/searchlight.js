@@ -2,8 +2,9 @@
 // paint, and a guard's searchlight is the only thing that charges it.
 //
 // The glass is the wall at night (blue panel: lit dots are light). A beam
-// three cells wide sweeps back and forth. Where it falls, the wall shows as a
-// stipple of lit brick and the painted digits stand out solid inside it.
+// three cells wide sweeps back and forth, sometimes stopping to wobble at
+// something. Where it falls, the wall shows as a half-tone of light and the
+// painted digits stand out solid inside it.
 // Behind it the paint keeps glowing, and a few seconds later each digit goes
 // dark again, whole, until the beam comes back. So the time is read in the
 // beam's wake, never all at once at rest: the far end of the yard is dark
@@ -79,16 +80,18 @@ const KIT_EDGES = { _: ['T', 'B'], T: ['_', 'M'], M: ['T', 'F'], B: ['_', 'F'], 
 const ON = '#####', OFF = '.....';
 const partRows = (p) => Array.from({ length: 8 }, (_, r) => (PART_ROWS[p].includes(r) ? ON : OFF));
 
-// The lit wall: a sparse stipple, so solid paint reads clearly inside it.
+// The lit wall: a half-tone, which the glass shows as a haze of light, so
+// solid paint reads clearly inside it. (A brick-bond pattern was tried: its
+// mortar lines made T and L shapes beside the digits.)
 const WALL = [
   '#.#.#',
-  '.....',
   '.#.#.',
-  '.....',
   '#.#.#',
-  '.....',
   '.#.#.',
-  '.....',
+  '#.#.#',
+  '.#.#.',
+  '#.#.#',
+  '.#.#.',
 ];
 // A painted part inside the beam: the paint solid, one clear row around it,
 // the stipple elsewhere.
@@ -99,59 +102,49 @@ function litRows(p) {
 
 // ------------------------------------------------------------------ the burglar
 //
-// Each pose is a body mask (his silhouette) and the dots that are lit on him.
-// In the dark only his lit dots show: beanie, eyes, white stripes. In the
-// light the body is cut out of the lit wall as a dark silhouette, with the
-// stripes and eyes still showing in it.
+// Each pose is the figure as it shows in the dark (beanie, eyes, shoes, lit
+// like the paint). In the light he is drawn solid with his eyes as dark
+// holes. Either way a one-dot ring is cleared round him so he never merges
+// with the paint or the lit wall.
 
-function pose(body, lit) {
-  const b = body.trim().split(/\s+/), l = lit.trim().split(/\s+/);
-  return { body: b, lit: l };
+function fillRows(d) {
+  const f = d.map((row) => {
+    const a = row.indexOf('#'), b = row.lastIndexOf('#');
+    return a < 0 ? OFF : '.'.repeat(a) + '#'.repeat(b - a + 1) + '.'.repeat(4 - b);
+  });
+  // an empty row inside the figure (a blink) is still body
+  return f.map((row, r) => (row !== OFF ? row
+    : [...row].map((_, i) => (f[r - 1]?.[i] === '#' && f[r + 1]?.[i] === '#' ? '#' : '.')).join('')));
 }
-const mirror = (p) => ({
-  body: p.body.map((r) => [...r].reverse().join('')),
-  lit: p.lit.map((r) => [...r].reverse().join('')),
-});
+function pose(dark, lightRows) {
+  const d = dark.trim().split(/\s+/);
+  const body = fillRows(d);
+  const eyes = d.map((row, r) => (r === lightRows[0] ? row : OFF));
+  // in the light: solid, with the eyes as dark holes
+  const solidLit = body.map((row, r) => [...row].map((ch, i) => (eyes[r][i] === '#' ? '.' : ch)).join(''));
+  return { dark: d, body, lit: solidLit };
+}
+const mirror = (p) => {
+  const m = (rows) => rows.map((r) => [...r].reverse().join(''));
+  return { dark: m(p.dark), body: m(p.body), lit: m(p.lit) };
+};
 
 const POSE = {
-  stand: pose(`
-    .###. .###. .###. ##### .###. ##### .###. .#.#.`, `
-    .###. .#.#. ..... ##### ..... ##### ..... .#.#.`),
-  lookL: pose(`
-    .###. .###. .###. ##### .###. ##### .###. .#.#.`, `
-    .###. #.#.. ..... ##### ..... ##### ..... .#.#.`),
-  blink: pose(`
-    .###. .###. .###. ##### .###. ##### .###. .#.#.`, `
-    .###. ..... ..... ##### ..... ##### ..... .#.#.`),
-  walkA: pose(`
-    .###. .###. .###. ##### .###. ##### .###. #...#`, `
-    .###. #.#.. ..... ##### ..... ##### ..... #...#`),
-  walkB: pose(`
-    ..... .###. .###. .###. ##### .###. ##### .##..`, `
-    ..... .###. #.#.. ..... ##### ..... ##### .##..`),
+  stand:   pose('.###. ##### .#.#. ..#.. ##### .###. .#.#. ##.##', [2, 5]),
+  blink:   pose('.###. ##### ..... ..#.. ##### .###. .#.#. ##.##', [5]),
+  lookL:   pose('.###. ##### #.#.. .#... ##### .###. .#.#. ##.##', [2, 5]),
+  walkA:   pose('.###. ##### #.#.. .#... ##### .###. .#.#. #...#', [2, 5]),
+  walkB:   pose('..... .###. ##### #.#.. .#... ##### .###. ##.#.', [3, 6]),
   // flattened against the wall, arms spread, eyes wide
-  flat: pose(`
-    .###. .###. ##### ##### ##### ##### .###. #...#`, `
-    .###. .#.#. #...# ##### ..... ##### ..... #...#`),
-  // brush raised to the left
-  paintA: pose(`
-    #.... ##### .#### .#### .###. ##### .###. .#.#.`, `
-    #.... ##### ..#.# ..### ..... ##### ..... .#.#.`),
-  paintB: pose(`
-    ..... ##### ##### .#### .###. ##### .###. .#.#.`, `
-    ..... #.### ##.#. ..### ..... ##### ..... .#.#.`),
-  hop: pose(`
-    ..... .###. .###. .###. ##### .###. ##### #...#`, `
-    ..... .###. .#.#. ..... ##### ..... ##### #...#`),
-  handsUp: pose(`
-    #...# #.#.# ##### .###. ##### .###. ##### .#.#.`, `
-    #...# #.#.# #.#.# ..... ##### ..... ##### .#.#.`),
-  bow: pose(`
-    ..... ..... ..... ##### ##### ##### .###. .#.#.`, `
-    ..... ..... ..... ###.. ..... ##### ..... .#.#.`),
-  startle: pose(`
-    .###. .###. #.#.# ##### .###. ##### .###. .....`, `
-    .###. .#.#. #.#.# ##### ..... ##### ..... .....`),
+  flat:    pose('.###. ##### #.#.# #.#.# ##### .###. .#.#. #...#', [2, 5]),
+  // brush up on the left, then the stroke down
+  paintA:  pose('#.### ##### #.#.# .#.#. ..### ..### ..#.# .##.#', [2, 5]),
+  paintB:  pose('..### .#### ..#.# ##### #.### ..### ..#.# .##.#', [2, 5]),
+  hop:     pose('..... .###. ##### .#.#. ..#.. ##### #.#.# #...#', [3]),
+  handsUp: pose('#...# #.#.# ##### .#.#. .###. .###. .#.#. ##.##', [3, 5]),
+  // the bow: he folds down two dots and bobs back up
+  bow:     pose('..... ..... .###. ##### #...# ##### .#.#. ##.##', [4]),
+  startle: pose('#.#.# .###. ##### .#.#. #.#.# .###. #...# .....', [3, 5]),
 };
 // directional poses, facing right
 for (const k of ['lookL', 'walkA', 'walkB', 'paintA', 'paintB']) POSE[k + 'R'] = mirror(POSE[k]);
@@ -164,16 +157,19 @@ function posed(name, dir) {
 // Camouflage: he holds the shape of the paint the cell is about to become,
 // with two eyes showing in it.
 function camo(part, t) {
-  const eyes = Math.floor(t / 0.6) % 3 === 2 ? '..#.#' : Math.floor(t / 0.6) % 3 === 1 ? '#.#..' : '.#.#.';
-  const rows = partRows(part);
-  const eyeRow = part === 'B' ? 6 : 1;
+  // eyes darting: centre, left, centre, right
+  const look = [1, 0, 1, 2][Math.floor(t / 0.5) % 4];
+  const eyes = ['#.#..', '.#.#.', '..#.#'][look];
   if (part === '_') {
-    const lit = rows.map((_, r) => (r === 2 ? eyes : OFF));
-    return { body: lit.map(() => OFF), lit, eyesOnly: true };
+    // nothing to pose as: in the dark only his eyes show
+    const lit = Array.from({ length: 8 }, (_, r) => (r === 3 ? eyes : OFF));
+    return { dark: lit, body: lit.map(() => OFF), lit, eyesOnly: true };
   }
-  const body = rows;
-  const lit = rows.map((row, r) => (r === eyeRow ? [...row].map((ch, i) => (eyes[i] === '#' ? '.' : ch)).join('') : row));
-  return { body, lit };
+  const rows = partRows(part);
+  // two eye holes, two dots tall where the paint is thick enough
+  const eyeRows = part === 'F' ? [2, 3] : part === 'B' ? [6] : [1];
+  const lit = rows.map((row, r) => (eyeRows.includes(r) ? [...row].map((ch, i) => (eyes[i] === '#' ? '.' : ch)).join('') : row));
+  return { dark: lit, body: rows, lit, solid: true };
 }
 
 // ------------------------------------------------------------------ time
@@ -202,29 +198,34 @@ function layoutFor(mi) {
   return L;
 }
 
-function readTime(L) {
-  let out = '';
+// Every time the wall could be read as. `wild` is a cell left out of the
+// reading; `tol` lets a slot read as a digit it misses by that many cells,
+// which is how the eye reads a half-painted one. No fit means no time.
+function readings(L, wild = null, tol = 0) {
+  let out = [''];
   for (const slot of SLOTS) {
-    const pat = [0, 1].map((r) => slot.cols.map((c) => L.get(c + ',' + r)).join('')).join('');
-    if (slot.key === 'H1') {
-      if (pat === 'FF') out += '1';
-      else if (pat === '__') out += ' ';
-      else return null;
-    } else {
-      const d = DECODE.get(pat);
-      if (d === undefined) return null;
-      out += d;
-    }
+    const keys = [0, 1].flatMap((r) => slot.cols.map((c) => c + ',' + r));
+    const cands = slot.key === 'H1'
+      ? [['1', 'FF'], [' ', '__']]
+      : Object.entries(DIGITS).map(([d, [u, l]]) => [d, u + l]);
+    const miss = (pat) => keys.filter((k, i) => k !== wild && L.get(k) !== pat[i]).length;
+    // an exact digit reads as itself; a broken one as anything it nearly is
+    let fit = cands.filter(([, pat]) => miss(pat) === 0).map(([d]) => d);
+    if (fit.length === 0) fit = cands.filter(([, pat]) => miss(pat) <= tol).map(([d]) => d);
+    if (fit.length === 0) return [];
+    out = out.flatMap((o) => fit.map((d) => o + d));
   }
   return out;
 }
+const readTime = (L) => { const v = readings(L); return v.length === 1 ? v[0] : null; };
 
 // ------------------------------------------------------------------ the beam
 
 const HALF = 4.0;               // one sweep across, including its dwell
-const TRAVEL = 3.2;             // of which this is motion
-const X0 = -3, X1 = 16;         // beam's left cell at each end, just off the glass
-const LIFE = 3.0;               // how long the paint glows after the light leaves
+const TRAVEL = 2.8;             // of which this is motion
+const X0 = -3, X1 = 16;         // beam's left cell at each end: fully off the glass, so
+                                // a lone lit column never rests beside the time like a 1
+const LIFE = 2.8;               // how long the paint glows after the light leaves
 
 // Trapezoidal speed profile: ease in, glide, ease out.
 function glide(u) {
@@ -255,7 +256,7 @@ function sweepX(sod) {
 
 // The hour: strobe, then two beams criss-crossing, then a curtain call.
 const STROBE = 2.4;
-const SEARCH_HALF = 2.6;
+const SEARCH_HALF = 2.2;
 const CONVERGE = 1.0, CAUGHT = 0.8, BOWS = 1.8, RELEASE = 1.6;
 const tri = (x) => { const f = ((x % 2) + 2) % 2; return f < 1 ? f : 2 - f; };
 
@@ -311,40 +312,56 @@ function kitPaths(a, b) {
 const colOf = (key) => Number(key.split(',')[0]);
 const rowOf = (key) => Number(key.split(',')[1]);
 
-// Order the changed cells (and pick how each is painted) so that every
-// intermediate wall reads as the old time, the new time, or no time at all.
+function standOptions(key, pos) {
+  const c = colOf(key), r = rowOf(key);
+  const sides = (pos.c > c ? [c + 1, c - 1] : [c - 1, c + 1]).filter((x) => x >= 0 && x < COLS);
+  return sides.map((x) => ({ c: x, r }));
+}
+
+// Order the changed cells and pick how each is painted, so that at every step
+// the wall reads as the old time, the new time, or no time at all, even to an
+// eye that forgives one wrong cell per digit.
 function planJobs(oldL, newL) {
   const keys = [...newL.keys()].filter((k) => oldL.get(k) !== newL.get(k));
   const oldT = readTime(oldL), newT = readTime(newL);
   const state = new Map(oldL);
-  const ok = () => { const v = readTime(state); return v === null || v === oldT || v === newT; };
+  // A half-painted digit one cell away from a wrong digit can read as that
+  // digit, so try to avoid those too; for the few turns where no order can
+  // (x29 -> x30), settle for never showing an exact wrong digit.
+  let tol = 1;
+  const ok = () => readings(state, null, tol).every((v) => v === oldT || v === newT);
   const seen = new Set();
   const order = [];
+  const dist = (k, pos) => Math.abs(colOf(k) - pos.c) + Math.abs(rowOf(k) - pos.r);
   const dfs = (pos, left) => {
     if (left.length === 0) return true;
     const memo = left.join('|');
     if (seen.has(memo)) return false;
-    const cand = [...left].sort((a, b) =>
-      Math.abs(colOf(a) - pos.c) + Math.abs(rowOf(a) - pos.r) - (Math.abs(colOf(b) - pos.c) + Math.abs(rowOf(b) - pos.r)));
+    const cand = [...left].sort((a, b) => dist(a, pos) - dist(b, pos));
     for (const k of cand) {
-      for (const path of kitPaths(oldL.get(k), newL.get(k))) {
-        let good = true;
-        for (const p of path.slice(1)) { state.set(k, p); if (!ok()) { good = false; break; } }
-        if (good) {
-          order.push({ key: k, path });
-          if (dfs({ c: colOf(k), r: rowOf(k) }, left.filter((x) => x !== k))) return true;
-          order.pop();
+      for (const stand of standOptions(k, pos)) {
+        for (const path of kitPaths(oldL.get(k), newL.get(k))) {
+          let good = true;
+          for (const p of path.slice(1)) { state.set(k, p); if (!ok()) { good = false; break; } }
+          if (good) {
+            order.push({ key: k, path, stand });
+            if (dfs(stand, left.filter((x) => x !== k))) return true;
+            order.pop();
+          }
+          state.set(k, oldL.get(k));
         }
-        state.set(k, oldL.get(k));
       }
     }
     seen.add(memo);
     return false;
   };
-  if (!dfs(HOME, keys)) {
-    // Should not happen (checked over the whole day); paint nearest-first.
+  let found = dfs(HOME, keys);
+  if (!found) { tol = 0; seen.clear(); order.length = 0; found = dfs(HOME, keys); }
+  if (!found) {
+    // Not reached on any minute of the day (checked); paint nearest-first.
     order.length = 0;
-    for (const k of keys) order.push({ key: k, path: kitPaths(oldL.get(k), newL.get(k))[0] });
+    let pos = HOME;
+    for (const k of keys) { const stand = standOptions(k, pos)[0]; order.push({ key: k, path: kitPaths(oldL.get(k), newL.get(k))[0], stand }); pos = stand; }
   }
   return order;
 }
@@ -352,30 +369,22 @@ function planJobs(oldL, newL) {
 // ------------------------------------------------------------------ the burglar's minute
 
 const DT = 0.05;
-const STEP_T = 0.24, HOP_T = 0.3, PREP_T = 0.3, WORK_T = 0.32, RELIEF_T = 0.35;
+const STEP_T = 0.2, HOP_T = 0.26, PREP_T = 0.2, WORK_T = 0.28, RELIEF_T = 0.3;
 
 // A program is a list of actions on his own clock, which only runs while the
 // light is away from him.
-function walkTo(prog, from, to, freeze = true) {
+function walkTo(prog, from, to, freeze = true, k = 1) {
   let { c, r } = from;
   while (c !== to.c) {
     const dir = Math.sign(to.c - c);
-    prog.push({ type: 'walk', from: { c, r }, to: { c: c + dir, r }, dir, dur: STEP_T, freeze });
+    prog.push({ type: 'walk', from: { c, r }, to: { c: c + dir, r }, dir, dur: STEP_T * k, freeze });
     c += dir;
   }
   if (r !== to.r) {
-    prog.push({ type: 'hop', from: { c, r }, to: { c, r: to.r }, dir: 0, dur: HOP_T, freeze });
+    prog.push({ type: 'hop', from: { c, r }, to: { c, r: to.r }, dir: 0, dur: HOP_T * k, freeze });
     r = to.r;
   }
   return { c, r };
-}
-
-function standFor(key, pos) {
-  const c = colOf(key), r = rowOf(key);
-  let s = pos.c > c ? c + 1 : c - 1;
-  if (s > COLS - 1) s = c - 1;
-  if (s < 0) s = c + 1;
-  return { c: s, r };
 }
 
 function idleActs(prog, mi, from, endBy) {
@@ -427,18 +436,20 @@ function simFor(mi) {
     prog.push({ type: 'pose', at: HOME, pose: 'stand', dir: 0, dur: 0.4, freeze: false });
     prog.push({ type: 'pose', at: HOME, pose: 'lookL', dir: -1, dur: 0.4, freeze: true });
   }
+  // on the hour he is in a hurry
+  const k = hour ? 0.5 : 1;
   let pos = { ...HOME };
   for (const job of jobs) {
-    const stand = standFor(job.key, pos);
-    pos = walkTo(prog, pos, stand);
+    const stand = job.stand;
+    pos = walkTo(prog, pos, stand, true, k);
     const dir = Math.sign(colOf(job.key) - stand.c);
-    prog.push({ type: 'prep', at: stand, job, dir, dur: PREP_T, freeze: true });
+    prog.push({ type: 'prep', at: stand, job, dir, dur: PREP_T * k, freeze: true });
     job.path.slice(1).forEach((part, i) => {
-      prog.push({ type: 'work', at: stand, job, step: i + 1, dir, dur: WORK_T, freeze: true });
+      prog.push({ type: 'work', at: stand, job, step: i + 1, dir, dur: WORK_T * k, freeze: true });
     });
   }
   if (hour) {
-    pos = walkTo(prog, pos, STAGE);
+    pos = walkTo(prog, pos, STAGE, true, k);
     prog.push({ type: 'stage', at: STAGE, dur: 0, freeze: false });
     prog.push({ type: 'pose', at: STAGE, pose: 'flat', dir: 0, dur: CONVERGE, freeze: false });
     prog.push({ type: 'pose', at: STAGE, pose: 'handsUp', dir: 0, dur: CAUGHT, freeze: false });
@@ -460,7 +471,7 @@ function simFor(mi) {
   SIMS.set(mi, sim);
 
   // run his clock against the light
-  let pc = 0, relief = 0, wasFrozen = false, ai = 0;
+  let pc = 0, relief = 0, ai = 0;
   const nT = Math.round(60 / DT);
   const stageAct = prog.find((a) => a.type === 'stage');
   for (let i = 0; i < nT; i++) {
@@ -475,10 +486,10 @@ function simFor(mi) {
         : beamsAt(tau);
       const cells = [at.c];
       if (act.type === 'prep' || act.type === 'work') cells.push(colOf(act.job.key));
-      frozen = cells.some((c) => nearCol(B, c));
+      frozen = cells.some((c) => (hour ? litCol(B, c) : nearCol(B, c)));
     }
     sim.ticks.push({ pc, frozen, relief: !frozen && relief > 0 });
-    if (frozen) { wasFrozen = true; relief = RELIEF_T; continue; }
+    if (frozen) { relief = RELIEF_T; continue; }
     if (relief > 0) { relief -= DT; continue; }
     const before = pc;
     pc += DT;
@@ -490,7 +501,6 @@ function simFor(mi) {
     }
     if (sim.end === Infinity && pc >= prog[busy - 1].start + prog[busy - 1].dur) sim.end = tau + DT;
   }
-  void wasFrozen;
   return sim;
 }
 
@@ -586,16 +596,22 @@ function glowing(sod, L, sims) {
 const full = () => Array.from({ length: 8 }, () => ON);
 const empty = () => Array.from({ length: 8 }, () => OFF);
 
-function composite(bg, spr, lit) {
+// The burglar over whatever the cell already shows. In the light: cut out as
+// a silhouette. In the dark or against glowing paint: drawn lit, with a
+// one-dot gap cleared round him so he doesn't melt into the paint.
+function composite(bg, spr, light) {
+  if (spr.solid) return spr.lit;          // camouflage replaces the cell
+  if (spr.eyesOnly && light) spr = POSE.flat; // caught in the open: flatten
+  const ink = light ? spr.lit : spr.dark;
+  const shape = light ? spr.body : spr.dark;
+  const near = (r, i) => {
+    for (let dr = -1; dr <= 1; dr++) for (let di = -1; di <= 1; di++) if (shape[r + dr]?.[i + di] === '#') return true;
+    return false;
+  };
   return bg.map((row, r) => [...row].map((ch, i) => {
-    if (spr.lit[r][i] === '#') return '#';
-    if (spr.body[r][i] === '#') return '.';
-    if (spr.eyesOnly && lit) {
-      // keep a clear ring round the eyes so they don't mix with the stipple
-      for (let dr = -1; dr <= 1; dr++) for (let di = -1; di <= 1; di++) {
-        if (spr.lit[r + dr]?.[i + di] === '#') return '.';
-      }
-    }
+    if (ink[r][i] === '#') return '#';
+    if (shape[r][i] === '#') return '.';
+    if (near(r, i)) return '.';
     return ch;
   }).join(''));
 }
@@ -629,8 +645,7 @@ export default {
       cells.push(cell);
     }
     const tc = cells[thief.r * COLS + thief.c];
-    const glowBg = tc.rom !== 0x20 || tc.tile;
-    cells[thief.r * COLS + thief.c] = { ...tc, rom: undefined, tile: composite(tc.rows, thief.pose, glowBg), rank: 1 };
+    cells[thief.r * COLS + thief.c] = { ...tc, rom: undefined, tile: composite(tc.rows, thief.pose, tc.lit), rank: 1 };
 
     // paint first, then the burglar, then the light
     const codes = new Array(cells.length);

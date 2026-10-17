@@ -33,20 +33,20 @@ const TAU = Math.PI * 2;
 // ------------------------------------------------------------ the board (board units, y toward the viewer)
 
 const BX = 58, BY = 34;          // inner half extents
-const RT = 3, RH = 6;            // rim thickness, height
-const BR = 3.2;                  // ball radius
-const HR = 4.4;                  // hole radius
-const KG = 918;                  // downhill acceleration per unit sin(tilt) (u/s^2)
+const RT = 3, RH = 7;            // rim thickness, height
+const BR = 3.7;                  // ball radius
+const HR = 5.0;                  // hole radius
+const KG = 760;                  // downhill acceleration per unit sin(tilt) (u/s^2)
 
-const START = [40, -19];
-const GOAL = [-40, 15];
-const TRAPS = [[-22, 22], [12, -21], [-9, 2]];
+const START = [36, -20];
+const GOAL = [-42, 17];
+const TRAPS = [[-16, 12], [-6, -20]];
 const HOLES = [START, GOAL, ...TRAPS];   // index 0 start, 1 goal, 2.. traps
 
 // ------------------------------------------------------------ the camera
 
-const E = 0.98, CE = Math.cos(E), SE = Math.sin(E);
-const D = 210;
+const E = 0.8, CE = Math.cos(E), SE = Math.sin(E);
+const D = 175;
 const CAM = [0, D * CE, D * SE];
 const LIGHT = (() => { const v = [-0.5, 0.45, 0.75]; const l = Math.hypot(...v); return v.map((c) => c / l); })();
 let F = 1, CY0 = 32;
@@ -102,10 +102,10 @@ const RAILS = Array.from({ length: 10 }, (_, d) => rails(d));
 
 // Four slots: hours small at the back left, minutes big at the front right.
 const SLOTS = [
-  { x: -47, y: -24.5, sx: 3.3, sy: 3.1, t: 2.6, h: 4.2 },
-  { x: -30, y: -24.5, sx: 3.3, sy: 3.1, t: 2.6, h: 4.2 },
-  { x: -1, y: -5.5, sx: 5.2, sy: 4.65, t: 3, h: 5 },
-  { x: 26, y: -5.5, sx: 5.2, sy: 4.65, t: 3, h: 5 },
+  { x: -50.5, y: -27, sx: 3.1, sy: 3.1, t: 2.8, h: 4 },
+  { x: -32, y: -27, sx: 3.1, sy: 3.1, t: 2.8, h: 4 },
+  { x: -4, y: -6, sx: 5.6, sy: 5.0, t: 3.2, h: 7 },
+  { x: 24.5, y: -6, sx: 5.6, sy: 5.0, t: 3.2, h: 7 },
 ];
 for (const s of SLOTS) { s.cx = s.x + 2 * s.sx; s.cy = s.y + 3 * s.sy; }
 
@@ -125,7 +125,7 @@ const RIM = [
   [-BX - RT / 2, -BY - RT / 2, -BX - RT / 2, BY + RT / 2],   // left
   [BX + RT / 2, -BY - RT / 2, BX + RT / 2, BY + RT / 2],     // right
   [-BX - RT / 2, BY + RT / 2, BX + RT / 2, BY + RT / 2],     // front
-].map(([ax, ay, bx, by]) => ({ ax, ay, bx, by, t: RT, h: RH }));
+].map(([ax, ay, bx, by]) => ({ ax, ay, bx, by, t: RT, h: RH, rim: true }));
 
 // ------------------------------------------------------------ small helpers
 
@@ -205,7 +205,7 @@ function lapSigma(u) {
 /** Downhill pull (tilt) the player holds during the lap: the low point leads the ball. */
 function lapPull(u) {
   const [, , tx, ty] = loopAt(lapSigma(u));
-  const m = 235 * ease.inOutQuad(progress(u, LAP0, -1.8)) * (1 - ease.inOutQuad(progress(u, 1.2, LAP1)));
+  const m = 165 * ease.inOutQuad(progress(u, LAP0, -1.8)) * (1 - ease.inOutQuad(progress(u, 1.2, LAP1)));
   // Lean a little outward too, so the board visibly swirls.
   return [tx * m - ty * m * 0.35, ty * m + tx * m * 0.35];
 }
@@ -219,51 +219,76 @@ function passTime(slot, u0, u1) {
   }
   return null;
 }
-const SINK_AT = [0, 1, 2, 3].map((k) => { const u = passTime(k, -2.4, -0.5); return u === null ? -0.6 : u + 0.05; });
-const RISE_AT = [0, 1, 2, 3].map((k) => { const u = passTime(k, 0.0, 1.9); return u === null ? 0.1 : u + 0.08; });
+// Each rail sinks just behind the ball on the lap before :00 and rises behind
+// it on the lap after, squeezed so no digit is missing for much over a second.
+const SINK_AT = [0, 1, 2, 3].map((k) => { const u = passTime(k, -1.6, -0.5); return u === null ? -0.6 : Math.max(-1.0, u + 0.05); });
+const RISE_AT = [0, 1, 2, 3].map((k) => { const u = passTime(k, 0.0, 1.0); return u === null ? 0.1 : Math.min(0.6, u + 0.05); });
 
 // ------------------------------------------------------------ the ghost player and the ball
 
 const DT = 1 / 120, NSTEP = 7200, STRIDE = 6;   // x, y, z, hole, gx, gy
 const CELL = 2, NX = (2 * BX) / CELL, NY = (2 * BY) / CELL;
-const POP_AT = 1.35, DROP_AT = 58.05, ARRIVE = 55.6;
+const POP_AT = 1.35, DROP_AT = 57.3, ARRIVE = 55.6;
 
 function wallClear(x, y, walls) {
   let best = 1e9;
-  for (const w of walls) {
-    const [cx, cy] = segClosest(x, y, w.ax, w.ay, w.bx, w.by);
-    const d = Math.hypot(x - cx, y - cy) - w.t / 2;
+  for (let k = 0; k < walls.length; k++) {
+    const w = walls[k], dx = w.bx - w.ax, dy = w.by - w.ay;
+    const u = clamp(((x - w.ax) * dx + (y - w.ay) * dy) / (dx * dx + dy * dy || 1), 0, 1);
+    const ex = x - w.ax - u * dx, ey = y - w.ay - u * dy;
+    const d = Math.sqrt(ex * ex + ey * ey) - w.t / 2;
     if (d < best) best = d;
   }
   return best;
 }
 
+// Collision buckets: walls near each 8 x 8 patch of the board.
+const BK = 8, BNX = Math.ceil((2 * BX + 8) / BK), BNY = Math.ceil((2 * BY + 8) / BK);
+const bucketOf = (x, y) => clamp(Math.floor((y + BY + 4) / BK), 0, BNY - 1) * BNX + clamp(Math.floor((x + BX + 4) / BK), 0, BNX - 1);
+
 function buildWorld(digits) {
   const walls = [...piecesOf(digits), ...RIM];
+  const buckets = Array.from({ length: BNX * BNY }, () => []);
+  for (const w of walls) {
+    const m = 9;   // generous, so clearances under 8 are exact from a bucket
+    const i0 = Math.floor((Math.min(w.ax, w.bx) - m + BX + 4) / BK), i1 = Math.floor((Math.max(w.ax, w.bx) + m + BX + 4) / BK);
+    const j0 = Math.floor((Math.min(w.ay, w.by) - m + BY + 4) / BK), j1 = Math.floor((Math.max(w.ay, w.by) + m + BY + 4) / BK);
+    for (let j = Math.max(0, j0); j <= Math.min(BNY - 1, j1); j++)
+      for (let i = Math.max(0, i0); i <= Math.min(BNX - 1, i1); i++) buckets[j * BNX + i].push(w);
+  }
   const clear = new Float32Array(NX * NY);
   for (let j = 0; j < NY; j++)
-    for (let i = 0; i < NX; i++) clear[j * NX + i] = wallClear(-BX + (i + 0.5) * CELL, -BY + (j + 0.5) * CELL, walls);
-  return { walls, clear };
+    for (let i = 0; i < NX; i++) {
+      const x = -BX + (i + 0.5) * CELL, y = -BY + (j + 0.5) * CELL;
+      clear[j * NX + i] = Math.min(8, wallClear(x, y, buckets[bucketOf(x, y)]));
+    }
+  return { walls, clear, buckets };
 }
+// The player keeps the ball well clear of holes it does not mean to use.
+const HOLE_KEEP = HR + 3.2;
 function holeFree(x, y, allow) {
   for (let h = 0; h < HOLES.length; h++) {
-    if (h === allow) continue;
-    if (Math.hypot(x - HOLES[h][0], y - HOLES[h][1]) < HR + BR * 0.4 + 1.2) return false;
+    if (h === allow || allow === -3) continue;
+    const dx = x - HOLES[h][0], dy = y - HOLES[h][1];
+    if (dx * dx + dy * dy < HOLE_KEEP * HOLE_KEEP) return false;
   }
   return true;
 }
-function okAt(world, x, y, allow, need = BR + 0.7) {
-  return wallClear(x, y, world.walls) >= need && holeFree(x, y, allow);
+/** Wall clearance at any point, bilinear from the grid. */
+function clearAt(world, x, y) {
+  const fx = clamp((x + BX) / CELL - 0.5, 0, NX - 1.001), fy = clamp((y + BY) / CELL - 0.5, 0, NY - 1.001);
+  const i = Math.floor(fx), j = Math.floor(fy), u = fx - i, v = fy - j, c = world.clear, k = j * NX + i;
+  return (c[k] * (1 - u) + c[k + 1] * u) * (1 - v) + (c[k + NX] * (1 - u) + c[k + NX + 1] * u) * v;
 }
-const cellFree = (world, i, j, allow) => i >= 0 && j >= 0 && i < NX && j < NY && world.clear[j * NX + i] >= BR + 0.9 &&
+const okAt = (world, x, y, allow) => clearAt(world, x, y) >= BR + 1.0 && holeFree(x, y, allow);
+const cellFree = (world, i, j, allow) => i >= 0 && j >= 0 && i < NX && j < NY && world.clear[j * NX + i] >= BR + 1.0 &&
   holeFree(-BX + (i + 0.5) * CELL, -BY + (j + 0.5) * CELL, allow);
 function nearestFreeCell(world, x, y, allow) {
   let best = -1, bd = 1e9;
   for (let j = 0; j < NY; j++)
     for (let i = 0; i < NX; i++) {
-      if (!cellFree(world, i, j, allow)) continue;
       const d = (-BX + (i + 0.5) * CELL - x) ** 2 + (-BY + (j + 0.5) * CELL - y) ** 2;
-      if (d < bd) { bd = d; best = j * NX + i; }
+      if (d < bd && cellFree(world, i, j, allow)) { bd = d; best = j * NX + i; }
     }
   return best;
 }
@@ -285,26 +310,38 @@ function planPath(world, a, b, allow) {
         prev[n] = c; q.push(n);
       }
   }
+  if (prev[e] === -2 && allow !== -3) return planPath(world, a, b, -3);   // boxed in: ignore the holes
   const cells = [];
   if (prev[e] !== -2) for (let c = e; c !== -1; c = prev[c]) cells.push([-BX + ((c % NX) + 0.5) * CELL, -BY + (((c / NX) | 0) + 0.5) * CELL]);
   cells.reverse();
   const raw = [a, ...cells, b];
   // Pull the string: keep only the corners the ball cannot see past.
   const sees = (p, r) => {
-    const n = Math.ceil(Math.hypot(r[0] - p[0], r[1] - p[1]));
+    const n = Math.ceil(Math.hypot(r[0] - p[0], r[1] - p[1]) / 0.8);
     for (let k = 1; k < n; k++) { const u = k / n; if (!okAt(world, p[0] + (r[0] - p[0]) * u, p[1] + (r[1] - p[1]) * u, allow)) return false; }
     return true;
   };
   const out = [raw[0]];
   let i = 0;
   while (i < raw.length - 1) {
-    let j = raw.length - 1;
+    let j = Math.min(raw.length - 1, i + 40);
     while (j > i + 1 && !sees(raw[i], raw[j])) j--;
     out.push(raw[j]); i = j;
   }
   const cum = [0];
   for (let k = 1; k < out.length; k++) cum.push(cum[k - 1] + Math.hypot(out[k][0] - out[k - 1][0], out[k][1] - out[k - 1][1]));
   return { pts: out, cum, len: cum[cum.length - 1] };
+}
+/** How fast the ball may go at arc length `s`: slow enough to make the next corner. */
+function cornerSpeed(path, s) {
+  const { pts, cum } = path;
+  let i = 1;
+  while (i < cum.length - 1 && cum[i] <= s) i++;
+  if (i >= pts.length - 1) return Math.sqrt(2 * 45 * Math.max(0, path.len - s)) + 4;
+  const ax = pts[i][0] - pts[i - 1][0], ay = pts[i][1] - pts[i - 1][1], bx = pts[i + 1][0] - pts[i][0], by = pts[i + 1][1] - pts[i][1];
+  const c = (ax * bx + ay * by) / ((Math.hypot(ax, ay) * Math.hypot(bx, by)) || 1);
+  const vt = 7 + 20 * Math.max(0, c);
+  return Math.sqrt(vt * vt + 2 * 45 * Math.max(0, cum[i] - s));
 }
 function pathAt(path, s) {
   const { pts, cum } = path;
@@ -333,24 +370,41 @@ function simulate(key, digits, kind) {
   const out = new Float32Array((NSTEP + 1) * STRIDE);
 
   // Waypoints: open places, far from one another.
+  // Only places the ball can reach from the return hole (not inside a closed 0 or 8).
+  const reach = new Uint8Array(NX * NY);
+  {
+    const s0 = nearestFreeCell(world, START[0] - 9, START[1], -1), q = [s0];
+    reach[s0] = 1;
+    for (let qi = 0; qi < q.length; qi++) {
+      const c = q[qi], ci = c % NX, cj = (c / NX) | 0;
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const n = (cj + dj) * NX + ci + di;
+        if (cellFree(world, ci + di, cj + dj, -1) && !reach[n]) { reach[n] = 1; q.push(n); }
+      }
+    }
+  }
   const cand = [];
   for (let j = 1; j < NY - 1; j++)
     for (let i = 1; i < NX - 1; i++) {
       const x = -BX + (i + 0.5) * CELL, y = -BY + (j + 0.5) * CELL;
-      if (world.clear[j * NX + i] >= BR + 2.6 && holeFree(x, y, -1) && Math.hypot(x - GOAL[0], y - GOAL[1]) > 14) cand.push([x, y]);
+      if (reach[j * NX + i] && world.clear[j * NX + i] >= BR + 2.6 && holeFree(x, y, -1) && Math.hypot(x - GOAL[0], y - GOAL[1]) > 14) cand.push([x, y]);
     }
   const legs = [];
   let last = kind === 'hour' ? GOAL : START;
   if (kind === 'hour') legs.push({ to: GOAL, type: 'drop', hole: 1 });
   const nWay = kind === 'normal' ? 6 : 5;
-  const fumble = kind === 'normal' && R() < 0.3;
+  const fumble = kind === 'normal' && R() < 0.22;
+  let budget = kind === 'hour' ? 330 : 470;
   for (let k = 0; k < nWay && cand.length; k++) {
     let p = null;
     for (let tries = 0; tries < 40; tries++) {
       const c = cand[Math.floor(R() * cand.length)];
-      if (Math.hypot(c[0] - last[0], c[1] - last[1]) > 34) { p = c; break; }
+      const d = Math.hypot(c[0] - last[0], c[1] - last[1]);
+      if (d > 30 && d < 75) { p = c; break; }
       p = c;
     }
+    budget -= Math.hypot(p[0] - last[0], p[1] - last[1]) * 1.3;
+    if (budget < 0 && k >= 2) break;
     legs.push({ to: p, type: 'way' });
     last = p;
     if (fumble && k === 2) {
@@ -364,7 +418,7 @@ function simulate(key, digits, kind) {
   else {
     // Wait beside the goal on the side the ball arrives from.
     const a = Math.atan2(last[1] - GOAL[1], last[0] - GOAL[0]);
-    legs.push({ to: [GOAL[0] + Math.cos(a) * (HR + BR + 1.6), GOAL[1] + Math.sin(a) * (HR + BR + 1.6)], type: 'goal', a });
+    legs.push({ to: [GOAL[0] + Math.cos(a) * (HR + BR + 2.8), GOAL[1] + Math.sin(a) * (HR + BR + 2.8)], type: 'goal', a });
   }
   const futureLen = (from) => {
     let s = 0, p = legs[from - 1] ? legs[from - 1].to : START;
@@ -375,7 +429,7 @@ function simulate(key, digits, kind) {
   // State.
   let phase = 'absent', px = START[0], py = START[1], vx = 0, vy = 0, pz = -2.4 * BR, hole = 0;
   let gx, gy, popAt = POP_AT, t0 = 0, f0x = 0, f0y = 0, f0z = 0, popDir = [0, 1];
-  let leg = 0, path = null, sig = 0, arrivedAt = -1;
+  let leg = 0, path = null, sig = 0, arrivedAt = -1, stuck = 0;
   const startStep = kind === 'hour' ? Math.round(LAP1 / DT) : 0;
   if (kind === 'hour') {
     const [lx, ly, tx, ty] = loopAt(lapSigma(LAP1));
@@ -392,7 +446,9 @@ function simulate(key, digits, kind) {
   };
   const relax = 1 - Math.exp(-DT / 0.11);
 
-  for (let n = 0; n <= NSTEP; n++) {
+  // Stepped lazily, only as far as a frame asks, so the cost spreads over the minute.
+  let done = -1;
+  const advance = (upto) => { for (let n = done + 1; n <= upto; n++) {
     const s = n * DT;
     if (n >= startStep) {
       let dgx, dgy;
@@ -400,6 +456,7 @@ function simulate(key, digits, kind) {
       if (phase === 'absent' && s >= popAt && s < 59) {
         // Spat out of the return hole: a hop towards the next leg.
         phase = 'hop'; t0 = s; hole = 0;
+        if (s > 44) leg = legs.length - 1;   // late: straight for the goal
         const L = legs[leg] || { to: GOAL };
         const a = Math.atan2(L.to[1] - START[1], L.to[0] - START[0]);
         popDir = [Math.cos(a), Math.sin(a)];
@@ -414,17 +471,22 @@ function simulate(key, digits, kind) {
         dgx = ix; dgy = iy;
       } else if (phase === 'roll') {
         if (!path) beginLeg();
+        if (s >= 56.8 && legs[leg] && legs[leg].type !== "goal" && legs[leg].type !== "hold") { leg = legs.length - 1; beginLeg(); }
         const L = legs[leg];
         // Pace: arrive at the goal (or the loop) on time.
         let remain = (path ? path.len - sig : 0) + futureLen(leg + 1);
         const tl = Math.max(0.6, (kind === 'prehour' ? ARRIVE + 0.8 : ARRIVE) - s);
-        let vc = clamp(remain / tl, 9, 46);
+        let vc = clamp(remain / tl, 9, 34);
         if (L && L.type === 'drop' && kind === 'hour' && leg === 0) vc = 30;
         let cx, cy, tvx = 0, tvy = 0;
         if (path) {
           const [ax, ay] = pathAt(path, sig);
           const lag = Math.hypot(ax - px, ay - py);
-          sig = Math.min(path.len, sig + vc * DT * clamp(1.7 - lag / 7, 0, 1));
+          // Knocked off the line (or pinned against a rail): plan again from here.
+          stuck = lag > 5 && Math.hypot(vx, vy) < 4 ? stuck + DT : 0;
+          if ((lag > 11 || stuck > 0.5) && sig < path.len - 0.5) { stuck = 0; beginLeg(); }
+          vc = Math.min(vc, cornerSpeed(path, sig));
+          sig = Math.min(path.len, sig + vc * DT * clamp(1.7 - lag / 6, 0, 1));
           const [qx, qy, tx, ty] = pathAt(path, sig);
           cx = qx; cy = qy;
           if (sig < path.len) { tvx = tx * vc; tvy = ty * vc; }
@@ -432,10 +494,14 @@ function simulate(key, digits, kind) {
             if (L.type === 'way' && Math.hypot(px - cx, py - cy) < 4.5) { leg++; beginLeg(); }
             else if (L.type === 'goal') {
               if (arrivedAt < 0 && Math.hypot(px - cx, py - cy) < 3) arrivedAt = s;
-              if (s >= DROP_AT) { cx = GOAL[0]; cy = GOAL[1]; }
+              if (s >= DROP_AT) {
+                // In it goes: aim through the hole, not at its centre.
+                const dx = GOAL[0] - px, dy = GOAL[1] - py, d = Math.hypot(dx, dy) || 1;
+                cx = GOAL[0] + (dx / d) * 4; cy = GOAL[1] + (dy / d) * 4;
+              }
               else if (arrivedAt >= 0) {
                 // Circle the goal, teasing.
-                const r = HR + BR + 1.6, w = 2.2, a = L.a + w * (s - arrivedAt) * (Math.sin(s * 0.7) > -0.2 ? 1 : 0.6);
+                const r = HR + BR + 2.8, w = 2.2, a = L.a + w * (s - arrivedAt) * (Math.sin(s * 0.7) > -0.2 ? 1 : 0.6);
                 cx = GOAL[0] + Math.cos(a) * r; cy = GOAL[1] + Math.sin(a) * r;
                 tvx = -Math.sin(a) * r * w; tvy = Math.cos(a) * r * w;
               }
@@ -443,7 +509,17 @@ function simulate(key, digits, kind) {
           }
         } else { cx = px; cy = py; }
         let ax = 7.5 * (cx - px) + 4.2 * (tvx - vx), ay = 7.5 * (cy - py) + 4.2 * (tvy - vy);
-        const am = Math.hypot(ax, ay), AM = 78;
+        // The player's eye on the holes it does not want: steer round them.
+        const want = L && L.type === 'drop' ? L.hole : L && L.type === 'goal' && s >= DROP_AT ? 1 : -1;
+        for (let h = 0; h < HOLES.length; h++) {
+          if (h === want) continue;
+          const dx = px - HOLES[h][0], dy = py - HOLES[h][1], d = Math.hypot(dx, dy) || 1;
+          if (d < 11) {
+            const k = 26 * (11 - d), vr = (vx * dx + vy * dy) / d;
+            ax += (dx / d) * k - (vr < 0 ? (dx / d) * vr * 3 : 0); ay += (dy / d) * k - (vr < 0 ? (dy / d) * vr * 3 : 0);
+          }
+        }
+        const am = Math.hypot(ax, ay), AM = 70;
         if (am > AM) { ax *= AM / am; ay *= AM / am; }
         dgx = ax + 0.7 * vx + (ix - 0) * 0.25; dgy = ay + 0.7 * vy + iy * 0.25;
       } else { dgx = ix; dgy = iy; }
@@ -468,9 +544,11 @@ function simulate(key, digits, kind) {
         }
         vx += axx * DT; vy += ayy * DT;
         px += vx * DT; py += vy * DT;
-        for (const w of world.walls) {
-          const [qx, qy] = segClosest(px, py, w.ax, w.ay, w.bx, w.by);
-          const dx = px - qx, dy = py - qy, d = Math.hypot(dx, dy), lim = BR + w.t / 2;
+        const bucket = world.buckets[bucketOf(px, py)];
+        for (let k = 0; k < bucket.length; k++) {
+          const w = bucket[k], wx = w.bx - w.ax, wy = w.by - w.ay;
+          const uu = clamp(((px - w.ax) * wx + (py - w.ay) * wy) / (wx * wx + wy * wy || 1), 0, 1);
+          const dx = px - w.ax - uu * wx, dy = py - w.ay - uu * wy, d = Math.hypot(dx, dy), lim = BR + w.t / 2;
           if (d < lim && d > 1e-6) {
             const nx = dx / d, ny = dy / d;
             px += nx * (lim - d); py += ny * (lim - d);
@@ -489,17 +567,18 @@ function simulate(key, digits, kind) {
         if (u >= 1) {
           phase = 'absent';
           const L = legs[leg];
-          if (L && L.type === 'drop') { leg++; path = null; popAt = s + (kind === 'hour' ? 0.9 : 1.1); }
-          else if (L && L.type === 'goal') { leg = legs.length; popAt = 1e9; }
-          else { path = null; popAt = s + 1.1; }   // a slip: try the same leg again
+          if (s > 54 && kind !== 'prehour') { leg = legs.length; popAt = 1e9; }   // too late to try again
+          else if (L && L.type === 'drop') { leg++; path = null; popAt = s + (kind === 'hour' ? 0.9 : 1.1); }
+          else if (L && L.type === 'goal' && hole === 1 && s > 56.5) { leg = legs.length; popAt = 1e9; }
+          else { path = null; popAt = s + 1.1; arrivedAt = -1; }   // a slip: try the same leg again
         }
       }
     } else { [gx, gy] = lapPull(s); }
     const o = n * STRIDE;
     const vis = phase !== 'absent' && n >= startStep;
     out[o] = px; out[o + 1] = py; out[o + 2] = vis ? pz : -99; out[o + 3] = hole; out[o + 4] = gx; out[o + 5] = gy;
-  }
-  return out;
+  } done = Math.max(done, upto); };
+  return { out, advance, get done() { return done; } };
 }
 
 const SIMS = new Map();
@@ -513,8 +592,10 @@ function simFor(key, digits, kind) {
   }
   return s;
 }
-function sample(sim, s) {
+function sample(run, s) {
   const f = clamp(s / DT, 0, NSTEP - 1e-6), i = Math.floor(f), u = f - i;
+  if (run.done < i + 1) run.advance(i + 1);
+  const sim = run.out;
   const a = i * STRIDE, b = a + STRIDE;
   const za = sim[a + 2], zb = sim[b + 2];
   const vis = za > -50 && zb > -50;
@@ -601,13 +682,15 @@ function boxGeom(w, h) {
     const [wnx, wny, wnz] = rotN(snx, sny, 0);
     if (wnx * (CAM[0] - wcx) + wny * (CAM[1] - wcy) + wnz * (CAM[2] - wcz) <= 0) continue;
     const lit = wnx * LIGHT[0] + wny * LIGHT[1] + wnz * LIGHT[2];
-    sides.push({ poly: [bot[2 * i], bot[2 * i + 1], bot[2 * j], bot[2 * j + 1], top[2 * j], top[2 * j + 1], top[2 * i], top[2 * i + 1]], level: 0.16 + 0.55 * Math.max(0, lit) });
+    sides.push({ poly: [bot[2 * i], bot[2 * i + 1], bot[2 * j], bot[2 * j + 1], top[2 * j], top[2 * j + 1], top[2 * i], top[2 * i + 1]], level: w.rim ? 0 : lit > 0.3 ? 0.5 : 0 });
   }
-  return { top, sides, depth, h };
+  return { top, sides, depth, h, rim: !!w.rim };
 }
 
 function drawBoxes(buf, boxes, dox, doy) {
-  for (const b of boxes) for (const s of b.sides) fillPoly(buf, s.poly, s.level, dox, doy);
+  for (const b of boxes) for (const s of b.sides) {
+    fillPoly(buf, s.poly, s.level, dox, doy);
+  }
   const tops = boxes.slice().sort((a, b) => a.h - b.h);
   for (const b of tops) fillPoly(buf, b.top, 1);
 }
@@ -627,6 +710,9 @@ function bbox(P) {
   return [Math.max(0, Math.floor(x0)), Math.max(0, Math.floor(y0)), Math.min(W - 1, Math.ceil(x1)), Math.min(H - 1, Math.ceil(y1))];
 }
 function drawHole(buf, h, kind) {
+  // A hole is a dark pit: only its far inner wall catches the light, a
+  // crescent, so it never reads as a ball or a letter O. The goal also has a
+  // brass ring round it.
   const [x0, y0, x1, y1] = bbox(h.top);
   for (let y = y0; y <= y1; y++)
     for (let x = x0; x <= x1; x++) {
@@ -634,12 +720,11 @@ function drawHole(buf, h, kind) {
       if (inConvex(h.top, px, py) && !inConvex(h.bot, px, py)) buf[y * W + x] = 1;
     }
   if (kind === 'goal') {
-    // A brass ring round the goal.
     const [hx, hy] = GOAL;
     let lx = null, ly = null;
     for (let k = 0; k <= 24; k++) {
       const a = (k / 24) * TAU;
-      proj(hx + (HR + 1.6) * Math.cos(a), hy + (HR + 1.6) * Math.sin(a), 0);
+      proj(hx + (HR + 2.2) * Math.cos(a), hy + (HR + 2.2) * Math.sin(a), 0);
       const x = Math.round(PT[0] - 0.5), y = Math.round(PT[1] - 0.5);
       if (lx !== null) line(buf, lx, ly, x, y);
       lx = x; ly = y;
@@ -667,18 +752,13 @@ function drawBall(buf, ball, clipPoly) {
   for (let y = y0; y <= y1; y++)
     for (let x = x0; x <= x1; x++) {
       const dx = (x + 0.5 - cx) / pr, dy = (y + 0.5 - cy) / pr, r2 = dx * dx + dy * dy;
-      if (r2 > (1 + 1.1 / pr) ** 2) continue;
+      if (r2 > (1 + 1.6 / pr) ** 2) continue;
       if (clipPoly && !inConvex(clipPoly, x + 0.5, y + 0.5)) continue;
-      let v = 0;
-      if (r2 <= 1) {
-        // Steel: the room above reflects bright, the dark board below; a
-        // thin bright rim of reflected walls, and the window highlight.
-        const ny = dy;
-        v = ny < 0.28 - 0.25 * dx ? 1 : 0;
-        if (r2 > 0.62 && ny > 0.1) v = 1;
-        if ((dx + 0.38) ** 2 + (dy + 0.38) ** 2 < 0.07) v = 0;
-        if ((dx + 0.38) ** 2 + (dy + 0.38) ** 2 < 0.02) v = 1;
-      }
+      // Polished steel at 1x: a solid bright ball in a black halo, so it
+      // never merges with a rail; one dark pixel off the window highlight
+      // when it is big enough to carry it.
+      let v = r2 <= 1 ? 1 : 0;
+      if (v && pr > 2.4 && Math.abs(dx + 0.3) < 0.5 / pr + 0.05 && Math.abs(dy + 0.3) < 0.5 / pr + 0.05) v = 0;
       buf[y * W + x] = v;
     }
 }
@@ -719,7 +799,7 @@ export default {
       const sm = sample(sim, s);
       ball = sm; gx = sm.gx; gy = sm.gy;
     }
-    const [ox, oy] = orbit(date, 1, 4);
+    const [ox, oy] = orbit(date, 2, 3);
     setPose(gx, gy, ox, oy);
 
     // Rails, with the ones that are changing at their current height.
@@ -746,9 +826,20 @@ export default {
     proj(ball.x, ball.y, BR);
     const ballDepth = PT[2];
     const behind = [], front = [];
+    // Merge runs of collinear rails at one height into single boards.
+    const runs = [];
     for (const p of pieces) {
       const k = heights.get(p);
       if (k <= 0.02) continue;
+      const r = runs[runs.length - 1];
+      if (r && r.slot === p.slot && r.k === k && Math.abs(r.bx - p.ax) < 0.01 && Math.abs(r.by - p.ay) < 0.01) {
+        const c = (r.bx - r.ax) * (p.by - p.ay) - (r.by - r.ay) * (p.bx - p.ax), d = (r.bx - r.ax) * (p.bx - p.ax) + (r.by - r.ay) * (p.by - p.ay);
+        if (Math.abs(c) < 0.01 && d > 0) { r.bx = p.bx; r.by = p.by; continue; }
+      }
+      runs.push({ ...p, k });
+    }
+    for (const p of runs) {
+      const k = p.k;
       const b = boxGeom(p, p.h * k);
       (b.depth > ballDepth ? behind : front).push(b);
     }
@@ -764,4 +855,3 @@ export default {
     oled.contrast(Math.round(DAY + (NIGHT_C - DAY) * night));
   },
 };
-export const __test = { simulate, sample, KG };

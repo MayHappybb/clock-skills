@@ -8,7 +8,7 @@
 // (organics faint, plastic grey, metal solid):
 //
 //   0 a trouser belt coiled up, buckle and holes     5 a key, an AA cell, headphones
-//   1 a folded umbrella standing on its tip           6 a magnifying glass
+//   1 an electric toothbrush, motor and cell show     6 a magnifying glass
 //   2 a banana, a pen (its refill shows), a phone     7 a hair dryer, heating coil and all
 //   3 headphones over a banana                        8 handcuffs
 //   4 a pen, a toothbrush, a spanner                  9 the magnifying glass, packed upside down
@@ -34,7 +34,6 @@
 import { dither, clamp, lerp, progress, orbit, ease } from '../js/kit.js';
 
 const W = 128, H = 64;
-const SHEET = false; // TEMP
 
 // ------------------------------------------------------------ geometry
 // Parts are tubes (polyline with a radius per vertex) or polygons, in a
@@ -151,12 +150,13 @@ const DIGITS = [
     cap(14.6, 16, 20.6, 16, 0.6, 'm'),
     disc(2.4, 11.5, 0.8, 'x'), disc(2.4, 16, 0.8, 'x'), disc(2.4, 20.5, 0.8, 'x'),
   ])],
-  // 1 umbrella
-  [obj('umbrella', [
-    poly([[11, 8], [13.7, 12], [14.5, 21], [12.3, 28.6], [9.7, 28.6], [7.5, 21], [8.3, 12]], 'p'),
-    cap(11, 6, 11, 31.4, 0.6, 'm'),
-    arc(7, 6, 4, 4, 90, -140, 1.8, 1.8, 'p', 14),
-    disc(12.6, 17.5, 0.9, 'm'),
+  // 1 electric toothbrush: the bristle head is the flag
+  [obj('toothbrush', [
+    cap(11.6, 14, 11.6, 30.4, 2.6, 'p'),                      // handle
+    cap(11.6, 3.2, 11.6, 13, 1.25, 'p'),                      // neck
+    box(10.0, 15.6, 13.2, 27.2, 'm'),                         // battery and motor
+    cap(11.6, 3.2, 11.6, 15, 0.35, 'm'),                      // drive shaft
+    poly([[10.4, 1.4], [5.6, 4.2], [4.8, 7.8], [10.4, 6.6]], 'o'),   // bristles
   ])],
   // 2 banana, pen, phone
   [banana(10, 10.2, 7.4, -75, 128), pen(15.2, 15.6, 3.4, 27.2),
@@ -250,15 +250,15 @@ const LINTEL = 5;        // curtain pivots
 const BELT = 39;         // belt top row
 const BAG_TOP = 7, BAG_W = 48, BAG_H = BELT - BAG_TOP;
 const MOUTH_L = 38;      // left end wall
-const BEAM_REST = 117;   // where the beam parks, at the entrance
+const BEAM_REST = 119;   // where the beam parks, at the entrance
 const REST_X = 56;       // parked bag's left edge
 const PITCH = 116;       // belt travel per minute
 const TURN = 2.8;        // seconds the belt runs
 const DIG_S = 0.86;      // minute digit scale
 const HOUR_S = 0.6;      // hour digit scale
 const XRAY_X0 = MOUTH_L + 1;
-const CURTAIN_L = [40.5, 42.5, 44.5];
-const CURTAIN_R = [120.5, 122.5, 124.5];
+const CURTAIN_L = [41.5, 44.5];
+const CURTAIN_R = [123.5, 126.5];
 
 const beltEase = ease.inOutQuad;
 const beltInv = (v) => (v < 0.5 ? Math.sqrt(v / 2) : 1 - Math.sqrt((1 - v) / 2));
@@ -282,7 +282,8 @@ function hash(n) { n = (n ^ 61) ^ (n >>> 16); n = Math.imul(n, 9); n ^= n >>> 4;
 function bagDigits(mm, bx) {
   const t = +mm[0], u = +mm[1];
   const dy = BAG_TOP + 2.2;
-  return [[t, bx + 4.2, dy], [u, bx + 4.2 + 21 * DIG_S + 1.4, dy]];
+  const gap = 2, w = 20.6 * DIG_S, x = bx + (BAG_W - 2 * w - gap) / 2;
+  return [[t, x, dy], [u, x + w + gap, dy]];
 }
 
 function drawBagShell(g, bx, style, cx0, cx1) {
@@ -378,28 +379,29 @@ function drawTable(g, f, sec) {
   solid.fill(0);
   for (const p of hourPoses(f, sec)) stamp(p.o, p.X, p.Y, HOUR_S, p.a, 's', 0);
   for (let i = 0; i < W * H; i++) if (solid[i]) g.buf[i] = 1;
-  // stainless table top and a leg
+  // stainless table top
   g.fillRect(0, TABLE_Y, 34, 2, 1);
 }
 
 // ------------------------------------------------------------ machine furniture
+const STRIP = BELT - LINTEL - 1;
+/** How far a bag whose leading edge is at x0 has pushed a strip hanging at px. */
+const pushed = (px, x0) => Math.min(1.45, Math.atan2(px - x0 + 0.5, STRIP) * 1.2);
+
 function curtainAngle(px, bags, sec, side) {
-  // bags: [{x0, x1}] at this instant; strips swing toward the left (belt runs right to left)
-  for (const b of bags) {
-    if (b.x0 < px && b.x1 > px) return 1.25;
-    if (b.x0 >= px && b.x0 - px < 0) return 0;
-  }
+  // bags: [{x0, x1}] at this instant; strips are pushed toward the left (belt runs right to left)
+  for (const b of bags) if (b.x0 < px && b.x1 > px) return pushed(px, b.x0);
   // release: when did the trailing edge of a bag pass px this minute?
-  let D = side === 'L' ? REST_X + BAG_W - px : REST_X + BAG_W + PITCH - px;
+  const D = side === 'L' ? REST_X + BAG_W - px : REST_X + BAG_W + PITCH - px;
   if (D <= 0 || D >= PITCH) return 0;
   const tr = TURN * beltInv(D / PITCH);
   const tau = sec - tr;
   if (tau < 0) return 0;
-  return 1.25 * Math.exp(-tau / 0.45) * Math.cos(2 * Math.PI * tau / 0.95);
+  return 0.32 * Math.exp(-tau / 0.6) * Math.cos(2 * Math.PI * tau / 1.25);
 }
 
 function drawCurtain(g, px, theta, bags) {
-  const L = BELT - LINTEL - 1;
+  const L = STRIP;
   const sx = -Math.sin(theta), sy = Math.cos(theta);
   for (let s = 0; s <= L; s += 0.5) {
     const x = px + sx * s, y = LINTEL + sy * s;
@@ -413,8 +415,8 @@ function drawMachine(g, sec, scan, alarm) {
   g.fillRect(MOUTH_L - 1, 0, W - MOUTH_L + 1, 2, 1);
   // left end wall above the opening and below the belt
   g.fillRect(MOUTH_L - 1, 0, 2, LINTEL, 1);
-  g.fillRect(MOUTH_L - 1, BELT + 2, 2, H - BELT - 2, 1);
-  g.hline(MOUTH_L + 1, H - 2, W - MOUTH_L - 1, 1);
+  g.fillRect(MOUTH_L - 1, BELT + 2, 2, 3, 1);
+  g.hline(MOUTH_L + 1, BELT + 4, W - MOUTH_L - 1, 1);
   // scanner head under the roof, and its beam
   const hx = scan.x;
   g.fillRect(Math.round(hx) - 3, 2, 7, 2, 1);
@@ -450,7 +452,7 @@ const DAY = 0xcf, NIGHT_C = 0x18;
 
 export default {
   name: 'X-Ray',
-  blurb: 'An airport baggage scanner seen through its side: the minutes are packed in the bag on the belt, numerals built from umbrellas, hair dryers and handcuffs that only show once the bag crosses the beam; the hour is laid out on the inspection table, and an alarm repacks it.',
+  blurb: 'An airport baggage scanner seen through its side: the minutes are packed in the bag on the belt, numerals built from toothbrushes, hair dryers and handcuffs that only show once the bag crosses the beam; the hour is laid out on the inspection table, and an alarm repacks it.',
   module: '096-128x64',
   colour: 'white',
   bus: 'spi10',
@@ -458,18 +460,6 @@ export default {
 
   frame(g, ctx) {
     const { fields: f, date, oled, night } = ctx;
-    if (SHEET) { // TEMP digit sheet
-      dens.fill(0); solid.fill(0); let id = 1;
-      if (ctx.t < 100) {
-        for (let d = 0; d < 10; d++) for (const o of DIGITS[d]) stamp(o, 3 + (d % 5) * 25, 2 + Math.floor(d / 5) * 31, DIG_S, 0, 'x', id++);
-        developXray(g, 0, W, () => 0);
-      } else {
-        for (let d = 0; d < 10; d++) for (const o of DIGITS[d]) stamp(o, 2 + d * 12.6, 4, HOUR_S, 0, 's', 0);
-        for (let d = 0; d < 10; d++) for (const o of DIGITS[d]) stamp(o, 2 + d * 12.6, 32, HOUR_S, 0.5 * (d % 2 ? 1 : -1), 's', 0);
-        for (let i = 0; i < W * H; i++) if (solid[i]) g.buf[i] = 1;
-      }
-      return;
-    }
     oled.contrast(DAY + (NIGHT_C - DAY) * night);
     const sec = f.sec;
     const D = travel(sec);
@@ -509,7 +499,8 @@ export default {
     drawBelt(g, D);
     drawTable(g, f, sec);
 
-    if (f.m === 0 && sec > 1.5 && sec < 1.56) g.invert(MOUTH_L + 1, 2, W - MOUTH_L - 1, BELT - 2);
+    // the alarm flash: the scanned bag lights up white for a blink
+    if (f.m === 0 && sec > 1.5 && sec < 1.58) g.invert(Math.max(XRAY_X0, Math.round(curX)), BAG_TOP, Math.min(BEAM_REST, Math.round(curX) + BAG_W) - Math.max(XRAY_X0, Math.round(curX)), BAG_H - 1);
 
     const [ox, oy] = orbit(date, 1, 3);
     if (ox || oy) g.shift(ox, oy);

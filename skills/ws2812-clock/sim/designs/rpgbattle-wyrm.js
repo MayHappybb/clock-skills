@@ -14,7 +14,7 @@ const CW = 30, CH = 60;
 // a stroke are joined by a Catmull-Rom spline. 'ring' = closed ellipse.
 const DEF = {
   0: { ring: [15, 30, 10.5, 24.5] },
-  1: [[[19, 56], [19, 34], [19, 14], [16.5, 7.5], [11, 9], [6.5, 14]]],
+  1: [[[28, 56.5], [22, 56], [18, 51], [18, 34], [18, 13], [15.5, 7], [11, 8.5]]],
   2: [[[27, 55.5], [5, 55.5]], [[5, 55.5], [13, 45], [21, 35], [25, 24], [23, 12], [15.5, 6], [8.5, 8], [5, 14.5]]],
   3: [[[4.5, 46], [8.5, 53], [16, 55.5], [23, 51.5], [25.5, 43], [22.5, 35], [14, 31]],
       [[14, 31], [21.5, 26.5], [24, 18], [21, 9.5], [14.5, 6], [8.5, 7.5], [5, 13]]],
@@ -75,16 +75,16 @@ for (const k in DEF) PATHS[k] = build(DEF[k]);
 
 // --------------------------------------------------- the surface buffer
 const SD = new Float32Array(W * H), SS = new Float32Array(W * H), NX = new Float32Array(W * H), NY = new Float32Array(W * H);
-const VV = new Float32Array(W * H), OWN = new Int8Array(W * H);
+const VV = new Float32Array(W * H), OWN = new Int8Array(W * H), PR = new Int8Array(W * H);
 let bx0 = W, bx1 = -1, by0 = H, by1 = -1;
 export function clear() {
-  for (let y = Math.max(0, by0); y <= Math.min(H - 1, by1); y++) for (let x = Math.max(0, bx0); x <= Math.min(W - 1, bx1); x++) { SD[y * W + x] = 99; OWN[y * W + x] = -1; }
+  for (let y = Math.max(0, by0); y <= Math.min(H - 1, by1); y++) for (let x = Math.max(0, bx0); x <= Math.min(W - 1, bx1); x++) { SD[y * W + x] = 99; OWN[y * W + x] = -1; PR[y * W + x] = 0; }
   bx0 = W; bx1 = -1; by0 = H; by1 = -1;
 }
 SD.fill(99); OWN.fill(-1);
 
 /** Stamp one disc: centre, radius, arc tag s, tangent (for the across sign), owner. */
-function stamp(cx, cy, r, s, tx, ty, own) {
+function stamp(cx, cy, r, s, tx, ty, own, pr) {
   const R = r + 2;
   const x0 = Math.max(0, Math.floor(cx - R)), x1 = Math.min(W - 1, Math.ceil(cx + R));
   const y0 = Math.max(0, Math.floor(cy - R)), y1 = Math.min(H - 1, Math.ceil(cy + R));
@@ -94,8 +94,8 @@ function stamp(cx, cy, r, s, tx, ty, own) {
     const dy = y - cy;
     for (let x = x0; x <= x1; x++) {
       const dx = x - cx, d = Math.sqrt(dx * dx + dy * dy) - r, p = y * W + x;
-      if (d < SD[p]) {
-        SD[p] = d; SS[p] = s; NX[p] = dx * ir; NY[p] = dy * ir; VV[p] = (tx * dy - ty * dx) * ir; OWN[p] = own;
+      if ((d < SD[p] && pr >= PR[p]) || (pr > PR[p] && d < 0.5)) {
+        PR[p] = pr; SD[p] = d; SS[p] = s; NX[p] = dx * ir; NY[p] = dy * ir; VV[p] = (tx * dy - ty * dx) * ir; OWN[p] = own;
       }
     }
   }
@@ -112,7 +112,7 @@ export function lay(o) {
   const hp = o.head * L;                     // path position of the head
   if (hp <= 0.5) return null;
   const off = L - hp;                        // body arc s sits at path q = s - off
-  const t = o.t, breath = 1 + 0.035 * Math.sin(t * 2.1 + o.own * 2);
+  const t = o.t, breath = 1 + 0.035 * Math.sin(t * 2.1 + (o.own & 1) * 2);
   const k0 = Math.max(0, Math.ceil(off / STEP));
   for (let k = 0; k < n; k++) {
     const q = k * STEP, s = q + off;          // q path position, s arc on the body
@@ -124,7 +124,7 @@ export function lay(o) {
     const r = R0 * breath * tail * neck;
     // slither: a small travelling wave across the body, fading at both ends
     const w = Math.sin(s * 0.42 - t * 3.1) * 0.55 * Math.min(1, s / 20) * Math.min(1, (L - s) / 10);
-    stamp(o.ox + P.x[kk] - P.ty[kk] * w, o.oy + P.y[kk] + P.tx[kk] * w, r, s, P.tx[kk], P.ty[kk], o.own);
+    stamp(o.ox + P.x[kk] - P.ty[kk] * w, o.oy + P.y[kk] + P.tx[kk] * w, r, s, P.tx[kk], P.ty[kk], o.own, o.pr | 0);
   }
   void k0;
   // head: continue past the path end along its tangent, turned by `sway`
@@ -135,14 +135,14 @@ export function lay(o) {
   const hx = o.ox + P.x[ke], hy = o.oy + P.y[ke];
   for (let u = 0; u <= 6.5; u += 0.5) {
     const r = u < 1.5 ? R0 * (0.92 + 0.28 * (u / 1.5)) : R0 * (1.2 - 0.5 * ((u - 1.5) / 5) ** 1.4);
-    stamp(hx + fx * u, hy + fy * u, r * breath, L + u, fx, fy, o.own);
+    stamp(hx + fx * u, hy + fy * u, r * breath, L + u, fx, fy, o.own, o.pr | 0);
   }
   return { x: hx, y: hy, fx, fy };
 }
 
 const lin = (h) => { const n = parseInt(h.slice(1), 16), f = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }; return [f(n >> 16), f((n >> 8) & 255), f(n & 255)]; };
 export const COL = {
-  dark: lin('#06301c'), body: lin('#1aa860'), lite: lin('#8dff9a'), gem: lin('#ffd84a'),
+  dark: lin('#06301c'), body: lin('#44f088'), lite: lin('#8dff9a'), gem: lin('#d8f040'),
   belly: lin('#0f7a46'), burn: lin('#ff6a1a'), ember: lin('#ffd070'), white: [1, 1, 1],
 };
 const LX = -0.55, LY = -0.75;   // light from the upper left
@@ -174,7 +174,7 @@ export function shadeAll(st) {
       if (d >= 0.5) continue;
       const cov = d < -0.5 ? 1 : 0.5 - d;
       const nx = NX[p], ny = NY[p], q = nx * nx + ny * ny, nz = Math.sqrt(q < 1 ? 1 - q : 0);
-      const lam = 0.32 + 0.68 * Math.max(0, 0.62 * nz - (nx * LX + ny * LY) * 0.75);
+      const lam = 0.55 + 0.6 * Math.max(0, 0.62 * nz - (nx * LX + ny * LY) * 0.75);
       const v = VV[p], sa = SS[p], head = sa > s.L;
       // scales: a chain of diamonds down the spine, rows of scales elsewhere
       const ph = sa / 5.4 - Math.floor(sa / 5.4);

@@ -60,7 +60,7 @@ const heart = (x, y, cx, cy, r) => ball(x, y, cx - r * 0.5, cy - r * 0.2, r * 0.
   || (y >= cy - r * 0.2 && Math.abs(x - cx) <= (cy + r - y) * 0.95);
 
 // ---------------------------------------------------------------- inks
-const IVORY = kit.scale(kit.hex('#f6ead0'), 0.6), RED = kit.hex('#d8162e'), INK = [0.006, 0.005, 0.01];
+const IVORY = kit.scale(kit.hex('#f6ead0'), 0.075), REDH = kit.hex('#ff6a50'), RED = kit.hex('#d8162e'), INK = [0.006, 0.005, 0.01];
 const GILT = kit.scale(kit.hex('#e0a830'), 0.55), BACK = kit.scale(kit.hex('#a8101e'), 0.7), BACKL = kit.scale(kit.hex('#ff5a3a'), 0.45);
 const LACQ = kit.scale(kit.hex('#8a0a1c'), 0.42), LACQD = kit.scale(kit.hex('#5a0612'), 0.3);
 const GOLD = kit.scale(kit.hex('#ffc040'), 0.95), GOLDH = kit.scale(kit.hex('#fff0b0'), 1), MOAT = [0.004, 0.001, 0.002];
@@ -89,8 +89,9 @@ function bake(w, h, fn) {
 const put = (o, c) => { o[0] = c[0]; o[1] = c[1]; o[2] = c[2]; o[3] = 1; };
 
 // ------------------------------------------------------------ hour card
-export const CARD_W = 32, CARD_H = 42;
-const HS = 0.92, HGX = [CARD_W / 2 - 0.6 - GW * HS, CARD_W / 2 + 0.6], HGY = (CARD_H - GH * HS) / 2;
+const MO = []; for (let k = 0; k < 12; k++) MO.push(Math.cos((k / 12) * kit.TAU) * 1.0, Math.sin((k / 12) * kit.TAU) * 1.0);
+export const CARD_W = 27, CARD_H = 36;
+const HS = 0.86, HGX = [CARD_W / 2 - 0.6 - GW * HS, CARD_W / 2 + 0.6], HGY = (CARD_H - GH * HS) / 2;
 function cardFace(hh) {
   const d = [Math.floor(hh / 10), hh % 10];
   return bake(CARD_W, CARD_H, (x, y, o) => {
@@ -98,12 +99,14 @@ function cardFace(hh) {
     let c = IVORY;
     const fr = Math.min(x, CARD_W - x, y, CARD_H - y);
     if (fr > 1.2 && fr < 1.8) c = GILT;
-    if (heart(x, y, 4.2, 4.6, 1.7) || heart(CARD_W - x, CARD_H - y, 4.2, 4.6, 1.7)) c = RED;
+    if (heart(x, y, 3.9, 4.2, 1.5) || heart(CARD_W - x, CARD_H - y, 3.9, 4.2, 1.5)) c = RED;
     for (let k = 0; k < 2; k++) {
       const g = GLYPH[d[k]], gx = (x - HGX[k]) / HS, gy = (y - HGY) / HS;
-      if (g(gx - 1.1, gy - 1.1)) c = INK;
+      let moat = false;
+      for (let q = 0; q < MO.length && !moat; q += 2) moat = g(gx + MO[q] * 1.25, gy + MO[q + 1] * 1.25);
+      if (moat) c = INK;
+      if (g(gx, gy)) c = g(gx + 0.8, gy + 0.8) ? RED : REDH;
     }
-    for (let k = 0; k < 2; k++) if (GLYPH[d[k]]((x - HGX[k]) / HS, (y - HGY) / HS)) c = RED;
     put(o, c);
   });
 }
@@ -125,7 +128,6 @@ export const CARD_BACK = bake(CARD_W, CARD_H, (x, y, o) => {
 // ------------------------------------------------------------ box panels
 export const BOX_W = 23, BOX_H = 30;
 const BS = 1.06, BGX = (BOX_W - GW * BS) / 2, BGY = (BOX_H - GH * BS) / 2;
-const MO = []; for (let k = 0; k < 12; k++) MO.push(Math.cos((k / 12) * kit.TAU) * 1.0, Math.sin((k / 12) * kit.TAU) * 1.0);
 function panel(x, y, w, o) {
   const fr = Math.min(x, w - x, y, BOX_H - y);
   let c = fr < 0.9 ? LACQD : LACQ;

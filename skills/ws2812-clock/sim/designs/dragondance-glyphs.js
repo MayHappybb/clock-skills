@@ -72,16 +72,42 @@ function resample(dense, n) {
     ys[j] = dense[k][1] + (dense[k + 1][1] - dense[k][1]) * f;
     zs[j] = Math.max(0, Math.min(1.5, dense[k][2] + (dense[k + 1][2] - dense[k][2]) * f));
   }
-  return { x: xs, y: ys, z: zs, len: tot };
+  return { x: xs, y: ys, z: zs, len: tot, sd: dorsal(xs, ys, n) };
 }
 
-/** Where the dancers' poles hold a route: the lowest front sample in each half. */
-function poles(r) {
-  const best = [-1, -1], by = [-1e9, -1e9];
+/**
+ * Which side of the body the dorsal fin is on, per sample, as a smooth value
+ * in [-1, 1] (+1: the side the normal (-ty, tx) points to). Inside a numeral
+ * the fin faces outward, away from the glyph's centre, so it never fills a
+ * counter; on the low runs (y > 42) it faces up.
+ */
+function dorsal(xs, ys, n) {
+  const raw = new Float32Array(n), sd = new Float32Array(n);
+  for (let j = 0; j < n; j++) {
+    const a = Math.max(0, j - 1), b = Math.min(n - 1, j + 1);
+    let tx = xs[b] - xs[a], ty = ys[b] - ys[a];
+    const l = Math.hypot(tx, ty) || 1; tx /= l; ty /= l;
+    const nx = -ty, ny = tx;
+    const out = nx * (xs[j] - 14) + ny * (ys[j] - 20);
+    const up = -ny;
+    const low = Math.max(0, Math.min(1, (ys[j] - 40) / 4));
+    raw[j] = (1 - low) * Math.sign(out) + low * Math.sign(up || 1);
+  }
+  for (let j = 0; j < n; j++) {
+    let acc = 0, cnt = 0;
+    for (let k = Math.max(0, j - 8); k <= Math.min(n - 1, j + 8); k++) { acc += raw[k]; cnt++; }
+    sd[j] = Math.max(-1, Math.min(1, (2 * acc) / cnt));
+  }
+  return sd;
+}
+
+/** Where the dancer's pole holds a numeral: its lowest front point, near the middle. */
+function pole(r) {
+  let best = Math.round(NS / 2), score = -1e9;
   for (let j = 0; j < NS; j++) {
-    if (r.z[j] < 0.9) continue;
-    const h = r.x[j] < 14 ? 0 : 1;
-    if (r.y[j] > by[h]) { by[h] = r.y[j]; best[h] = j; }
+    if (r.z[j] < 0.9 || r.y[j] > 41) continue;
+    const sc = r.y[j] - 0.12 * Math.abs(r.x[j] - 14);
+    if (sc > score) { score = sc; best = j; }
   }
   return best;
 }
@@ -89,17 +115,17 @@ function poles(r) {
 export const GLYPHS = [];
 for (let d = 0; d <= 9; d++) {
   const r = resample(spline(ROUTES[d]), NS);
-  r.poles = poles(r);
+  r.pole = pole(r);
   GLYPHS.push(r);
 }
 
-/** The dive: the body ducks into a low wave across the slot, between digits. */
+/** The dive: the dancers duck the stretch low, a ripple across the slot. */
 export const DIVE = (() => {
-  const pts = [E, [2, 45, 0.5], [8, 40, 1], [14, 43, 1], [20, 38.5, 1], [26, 42, 1], [30, 45, 0.5], X];
+  const pts = [E, [2, 46.5, 1], [8, 43.5, 1], [14, 45.5, 1], [20, 43, 1], [26, 45.5, 1], [30, 46.5, 1], X];
   const r = resample(spline(pts), NS);
-  r.poles = [Math.round(NS * 0.3), Math.round(NS * 0.7)];
+  r.pole = Math.round(NS / 2);
   return r;
 })();
 
-/** A fixed stretch of body from a to b through the given points (world coords). */
+/** A stretch of body through the given points [[x, y, z]...]. */
 export function strand(pts, n) { return resample(spline(pts), n); }

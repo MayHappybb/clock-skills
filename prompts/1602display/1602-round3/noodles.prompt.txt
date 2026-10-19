@@ -1,0 +1,108 @@
+Design ONE clock face for a 16x2 HD44780 character LCD (a "1602") with the
+1602-clock skill (.claude/skills/1602-clock). Read SKILL.md,
+references/gotchas.md and references/design-guide.md first, and skim
+references/worked-examples.md. Edit only sim/designs/noodles.js (already
+registered as a placeholder; give it a real name and blurb). Don't touch other
+designs, index.js or sim/js/. Always pass --out with a path starting
+out/noodles when rendering, and don't render other designs. Work alone: don't
+spawn subagents. Other agents are building other faces on this machine.
+
+Starting idea (push past it, or replace it if you find something stronger):
+A noodle master pulling lamian. A chef in a tall hat stands in the middle; the digits are hand-pulled noodles, each a soft round strand bent into a numeral (custom noodle tiles, flour dust). Idle: he slaps and folds dough, flour puffs, steam rises from a pot. Minute: he grabs the old digit's noodle, stretches it, folds it, swings it (the slow glass makes swinging strands blur) and flicks it into the pot with a splash, then pulls a fresh strand and lays it into the new numeral. Hour: a giant swing of noodles across the whole glass, the strands doubling with every fold.
+
+GOAL: a stranger looks at this little green or blue strip and says "wait,
+that's a clock?" Creativity comes first. A competent, conventional face is a
+fail. This owner loves playful, character-driven, game-like faces (Pac-Man,
+Pong, invaders, cuckoo went down well) and smooth, physical transitions, and
+dislikes ordinary fonts, ordinary layouts and faces that sit still.
+
+THE HARDWARE IS THE CANVAS. Eight CGRAM tiles at once, 5x8 dots each, a
+glass that takes 150-200 ms to switch, gaps between cells, ROM characters
+for free. Great 1602 faces turn those limits into the idea: the seams become
+the cracks between bricks, the slow glass becomes a glow or a ghost, ROM
+characters become props and scenery.
+
+REQUIREMENTS
+1. Concept: the time is expressed by the theme's own mechanism. Test: if
+   swapping your digits for the plain ROM digits still works, the digits are
+   not part of the idea yet.
+2. Letterforms: don't use the one-dot-thin ROM digits for the main time. Draw
+   a face that belongs to the theme (a kit of cell-aligned parts, custom
+   tiles, or the time made of the world's objects). Any small labels use ROM
+   only if it fits the look.
+3. Layout: not a centred HH:MM line. Use all 32 cells as a stage, and use
+   both rows. Hours and minutes may be different systems.
+4. Always alive: something moves, at a pace the glass can show, every second,
+   not only at the turn.
+5. Minute turn: the old time physically becomes the new one through the
+   theme's process, with every visible step at least ~150 ms. It must read
+   mid-transition and never show a wrong time. The hour gets a bigger,
+   distinct show.
+6. Characters, if any, are carefully hand-drawn 5x8 tiles with personality
+   (anticipation, reactions, idle fidgets) and they act on the time.
+7. Technical: frame() is a pure function of time; `node tools/tile-budget.mjs
+   --design noodles` passes (never more than 8 tiles, no trap #1); frame cost
+   fits the declared bus (default i2c100); fps no higher than the glass can
+   use (~10-12). Legible at 1:1. No hidden extra features.
+
+PROCESS
+1. Pitch three very different concepts, none a reskin of an existing design
+   (`node tools/render.mjs --list`). For each, count the tiles it needs at the
+   worst minute of the day before choosing. Pick the strongest, judging
+   harshly.
+2. Glyphs first: draw the digits and characters, render them, and iterate
+   until each reads at 1:1 and looks designed.
+3. Build, then render with the LC lag on:
+   out/noodles.png (--scale 14 --crop view --style clean),
+   out/noodles-hero.png (--style photo --crop body),
+   out/noodles-turn.png (--sheet across 10:09:59),
+   out/noodles-hour.png (--sheet across 10:59:58),
+   out/noodles.gif (a minute turn) and out/noodles-hour.gif. Look at every image.
+4. Ask: is the font, layout, motion or transition ordinary? Is it charming
+   and surprising? Fix the weakest part and re-render. At least two rounds.
+5. Report: the idea in one sentence, render paths, the tile-budget result
+   (worst slot count, worst frame cost), and the honest weakest point.
+
+Lessons from the last two 1602 rounds (20 faces), from the owner's gallery:
+- Strongest stills: pigeons (crumb numerals on a ledge, birds beside them),
+  juggler (four digits on a juggling arch over both rows), zipper (bold).
+- Failures to avoid:
+  - character parts beside the digits that read as letters or digits: fish
+    tails read as "M" and heads as arrows, so "<18M <56M" looked like text;
+    window boxes read as "00000". Check what every non-digit cell spells.
+  - a wall of solid 0xFF blocks with negative digits cut in it reads as a
+    black slab; the digits got lost. Keep plenty of empty glass.
+  - one-cell-wide digits look sparse and weak next to a scene; a small
+    classic "18:56" with the scene beside it is a fail.
+  - an hour shown as a kanji or a symbol reads as a little figure; the time
+    must be readable by any stranger.
+  - long gaps: a turn that leaves a digit empty for 12-30 s; keep empty
+    stretches to a few seconds.
+  - a beam/stripe effect laid over the digits hid the hour.
+- tile-budget samples only 11 instants per minute: run your own dense frame
+  sweep across the turn and the hour (every frame must fit 8 tiles and show
+  a right time). Check a night and a noon clock and all ten digits in every
+  slot. Decide 12 or 24 h deliberately; 18:56 should not read as 6:56 unless
+  there is an AM/PM cue.
+
+LOOKING AT YOUR RENDERS: on this machine the Read tool often returns nothing
+for PNG/GIF files (no image arrives). If an image does not come back, do not
+guess: check it as text instead. `node tools/frame.mjs noodles --clock HH:MM:SS --t <s>` prints the emulator's dots as ASCII.
+Never claim you looked at an image you did not actually see; say in your
+report which checks were visual and which were text.
+
+THIS ROUND (2026-10-18): the owner asked for 10 more faces per display (1602,
+12864 OLED, HUB75), built in parallel, in the same spirit as the last round:
+"unleash all your creativity, make them all very amazing". The bar is the
+best face in the gallery, not a good one. Find the one surprising, delightful
+moment that makes someone laugh or gasp, and make the time at rest belong to
+the theme, not only the turns. The first thing a stranger must see is the
+time; the second is the joke or the wonder.
+Don't add the owner's avatar or any recurring mascot (no frog): characters,
+if any, belong to the theme.
+
+Work alone: don't spawn subagents. About 19 other agents are building other
+faces in parallel on this machine (8 cores), so only ever write to your own
+files and out/noodles*, render sequentially, and keep tool output short (pipe
+big outputs through head/tail, read files in focused slices). The owner's API
+quota has run out mid-round before: be economical, but finish.

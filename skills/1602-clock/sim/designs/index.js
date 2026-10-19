@@ -7,6 +7,10 @@
 // tool down with it.
 
 const KEYS = [
+  // round 2026-10-18b: 6 more faces
+  'clawgame', 'lemmings', 'fireman', 'knitting', 'pinball', 'stamper',
+  // round 2026-10-18: 10 more faces
+  'topiary', 'breakout', 'asteroids', 'ufo', 'laundry', 'bowling', 'beaver', 'robovac', 'noodles', 'snowman',
   // round 2026-10-16: 8 faces, 'unleash all your creativity'
   'miner', 'samurai', 'zipper', 'searchlight', 'angler', 'towercrane', 'juggler', 'pigeons',
   // round 2026-10-05: 12 faces, creativity-first brief

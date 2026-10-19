@@ -1,0 +1,102 @@
+Design ONE clock face for a monochrome 096-128x64 OLED with the oled-clock skill
+(.claude/skills/oled-clock). Read SKILL.md and references/gotchas.md first.
+Edit only sim/designs/pez.js (already registered as a placeholder; give it a
+real name and blurb). Don't touch other designs, index.js or sim/js/, and don't
+render other designs.
+
+Starting idea (push past it, or replace it if you find something stronger):
+A PEZ candy dispenser in real 3D: a character head on a hinged lid tips back to reveal a candy brick, the stem holding a stack of bricks. The minutes are printed on the candy bricks (bold numerals on the end of each brick); the hour is the character's identity or a number on its stem. Design a cute but bold character head that reads at 1x. Always alive: the dispenser sways and rotates, the head bobs, the spring inside creeps. Minute turn: the head tips back, the top brick with the old minute shoots out and tumbles away, the stack springs up and the next brick (the new minute) rises into place, the head snaps shut. Hour: the dispenser is refilled with a whole new stack, sliding in from below.
+
+GOAL: a stranger looks at it and says "wait, that's a clock?" Creativity comes
+first. A competent, pretty, conventional face is a fail. The bar to beat is
+scope, cube, numberfolk, nixie and urwerk.
+
+REQUIREMENTS
+1. Concept: the time is expressed by the theme's own mechanism. Test: if
+   swapping your digits for a plain bitmap font still works, the digits are not
+   part of the idea yet.
+2. Letterforms: draw your own, made of or carried by the theme's material. No
+   kit fonts (font5x7, font3x5, strokeDigit, segDigit, dotText) for the time.
+   Design all ten digits as a set. Any date or label speaks the same visual
+   language, or leave it out.
+3. Layout: never four digits in a row, with or without decoration around
+   them; that is the default every weak face falls back to. Use a scene,
+   depth, a dial, a mechanism, hours and minutes as different systems.
+4. Always alive: smooth 60 fps sub-pixel motion that belongs to the theme,
+   every second, not only at the turn.
+5. Minute turn: the old digit physically becomes the new one through the
+   theme's process, 0.8-3 s, eased, no pops or cuts. Never show a wrong time.
+   The hour gets a bigger, distinct show.
+6. Composition: one hero, one or two supporting elements, a designed
+   background, plenty of black. It must read at 1x: no tiny glyphs, no noise
+   as texture. Every element belongs to the same world.
+7. Characters, if any, are carefully hand-drawn (sprites beat formulas at this
+   size) and interact with the time.
+8. Technical: frame() is a pure function of time; `node tools/check.mjs
+   --design pez` passes; frame() under ~2 ms. No hidden extra features.
+
+PROCESS
+1. Pitch three very different concepts, none like an existing design
+   (`node tools/render.mjs --list`). Pick the strongest, judging harshly.
+2. Digits first: render out/pez-digits.png and iterate until every digit is
+   beautiful on its own.
+3. Build, then render out/pez.png, out/pez-turn.png (--sheet across
+   10:09:58), out/pez-hour.png (--sheet across 10:59:58), out/pez.gif and
+   out/pez-hour.gif. Look at every image.
+4. Ask: is the font, layout, motion or transition ordinary? Is it fascinating?
+   Fix the weakest part and re-render. At least two rounds.
+5. Report: the idea in one sentence, render paths, the check.mjs result, and
+   the honest weakest point.
+
+Lessons from rounds 10-13 (32 faces), from the owner's gallery:
+- Strongest stills last round: ropeknot (3D laid-rope numerals hanging from
+  a yard), spintops (numbers painted on spinning tippe tops), cootie (paper
+  fortune teller, hour in the mouth, minutes on the pockets), stringart.
+- Fixes I had to make last round, check yours for the same:
+  - a lit, dithered surface everywhere (paper, slab, lattice) made the time
+    unfindable: the time must be the brightest, boldest thing, on plenty of
+    black, with a black moat round each stroke;
+  - an hour shown as a pointer with no scale could not be read: if the time
+    is a position, draw the scale it is read against;
+  - an hour cut into a shaded slab got lost in the shading;
+  - 12 h with no AM/PM cue (18:56 read as 6): use 24 h, or a clear cue;
+  - minute digits made of a grid of small balls/cells read as a lumpy grid.
+- Still true: textured plain letterforms are not enough, the letterform is
+  designed for the theme; no speckle (scattered single pixels) as shading or
+  texture; solid contour lines beat hatching; the hour show keeps the time
+  readable (blank for more than ~1 s is a fail); never four digits in a row
+  (compose a scene); characters and props at 1x are bold, simple
+  silhouettes. If the face is 3D, look at sim/designs/cube.js: real geometry,
+  perspective, shading by facing, correct occlusion, always moving. Keep
+  frame() under ~2 ms.
+
+LOOKING AT YOUR RENDERS: on this machine the Read tool often returns nothing
+for PNG/GIF files (no image arrives). If an image does not come back, do not
+guess: check it as text instead. Render at true size and convert with `node /Users/bilibili/coding/1602display/prompts/tools/ascii.mjs <png> <cols>` (prints luminance as ASCII; use cols = the panel width, or crop with extra args x y w h). For OLED: `node tools/render.mjs pez --clock HH:MM:SS --px 1 --style clean --out /tmp/pez-1x.png`, then 128 cols.
+Never claim you looked at an image you did not actually see; say in your
+report which checks were visual and which were text.
+
+THIS ROUND (2026-10-18): the owner asked for 6 more faces per display, right after 10 (1602,
+12864 OLED, HUB75), built in parallel, in the same spirit as the last round:
+"unleash all your creativity, make them all very amazing". The bar is the
+best face in the gallery, not a good one. Find the one surprising, delightful
+moment that makes someone laugh or gasp, and make the time at rest belong to
+the theme, not only the turns. The first thing a stranger must see is the
+time; the second is the joke or the wonder.
+Don't add the owner's avatar or any recurring mascot (no frog): characters,
+if any, belong to the theme.
+
+Work alone: don't spawn subagents. About 9 other agents are building other
+faces in parallel on this machine (8 cores), so only ever write to your own
+files and out/pez*, render sequentially, and keep tool output short (pipe
+big outputs through head/tail, read files in focused slices). The owner's API
+quota has run out mid-round before: be economical, but finish.
+
+Lessons from the round just finished (10 more OLED faces, checked in ASCII):
+- strongest: bricks (bold studded 3D minutes), coinpusher (3D tokens),
+  cootie-style bold ink, jackbox, beadmaze, icecubes.
+- weak: rotary (minutes 14 px on a small card while the hour was 32 px: put
+  the bigger half of the time on the hero), wiper (hour drawn as bokeh rings
+  read as noise), armillary (hero object a busy cage at 40 px).
+- per-minute simulation catch-up cost 7-110 ms in one frame (beadmaze): keep
+  every frame bounded (rest states + short episodes), measure the worst frame.

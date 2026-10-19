@@ -6,6 +6,10 @@
 // every tool down with it.
 
 const KEYS = [
+  // round 11 (2026-10-18): 6 more HUB75 faces
+  'campfire', 'grandprix', 'graffiti', 'pachinko', 'watercolor', 'jukebox',
+  // round 10 (2026-10-18): 10 more HUB75 faces
+  'ramen', 'pinata', 'papelpicado', 'escalator', 'ferriswheel', 'crossroads', 'cardstunt', 'vending', 'salmon', 'dollhouse',
   // round 9 (2026-10-16): 8 HUB75 faces, 'unleash all your creativity'
   'forge', 'magician', 'rpgbattle', 'dragondance', 'geode', 'abyss', 'matryoshka', 'shootinggallery',
   // round 8 (2026-10-09): 12 more faces for HUB75 assemblies

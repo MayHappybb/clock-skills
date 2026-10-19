@@ -7,6 +7,10 @@
 // tool down with it.
 
 const KEYS = [
+  // round 15 (2026-10-18): 6 more faces
+  'jenga', 'selectric', 'pez', 'newton', 'scissors', 'bubblegum',
+  // round 14 (2026-10-18): 10 more faces
+  'wiper', 'rotary', 'armillary', 'coinpusher', 'bricks', 'beadmaze', 'cards', 'icecubes', 'jackbox', 'toaster',
   // round 13 (2026-10-16): 8 faces, 'unleash all your creativity'
   'stringart', 'xray', 'ropeknot', 'galton', 'cootie', 'labyrinth', 'plasticine', 'spintops',
   // round 12 (2026-10-04): 4 real-3D faces, after cube

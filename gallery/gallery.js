@@ -223,6 +223,12 @@ const fit = (mm, box, max) => Math.max(0.5, Math.min(max, box.w / mm.w, box.h / 
 /** The stacked, scrolling focus layout of gallery.css (narrow screens). */
 const STACKED = matchMedia('(max-width: 900px)');
 
+/** Rough frames and underlines from the site's sketch kit, if it has loaded (the gallery works without it). */
+const sketchDraw = (root) => {
+  if (window.sketch) window.sketch.draw(root);
+  else document.addEventListener('sketch:ready', () => window.sketch.draw(root), { once: true });
+};
+
 // ---- the halls ---------------------------------------------------------------------------
 const el = (tag, props = {}, ...kids) => {
   const n = Object.assign(document.createElement(tag), props);
@@ -262,9 +268,11 @@ function buildHalls() {
     list.style.setProperty('--case-w', `${v.box.w}px`);
     list.style.setProperty('--vitrine-h', `${v.box.h}px`);
     for (const face of hall.faces) list.append(buildTile(hall, face));
+    section.querySelector('h2').setAttribute('data-under', '');
     section.append(list);
     main.append(section);
   }
+  sketchDraw(main);
 }
 
 function buildTile(hall, face) {
@@ -289,6 +297,7 @@ function buildTile(hall, face) {
         el('span', { className: 'placard-fps' }, `${face.fps} fps`, rateEl)),
       el('p', { className: 'placard-blurb', id: blurbId, textContent: face.blurb }),
     ));
+  link.setAttribute('data-frame', '');           // a rough frame from the sketch kit
   link.setAttribute('aria-labelledby', nameId);
   link.setAttribute('aria-describedby', blurbId);
   link.addEventListener('click', (e) => {
@@ -525,7 +534,14 @@ async function main() {
   wireFocus();
   // the focus view sits below the masthead, so the clock stays in reach
   const mast = document.querySelector('.masthead');
-  new ResizeObserver(() => document.documentElement.style.setProperty('--mh', `${mast.offsetHeight}px`)).observe(mast);
+  // its bottom edge, not its height: the site header above it scrolls away before the masthead sticks
+  const setMh = () => {
+    const root = document.documentElement.style;
+    root.setProperty('--mh', `${Math.round(mast.getBoundingClientRect().bottom)}px`);
+    root.setProperty('--mast-h', `${mast.offsetHeight}px`);
+  };
+  new ResizeObserver(setMh).observe(mast);
+  addEventListener('scroll', setMh, { passive: true });
   if (!('transferControlToOffscreen' in HTMLCanvasElement.prototype)) {
     $('intro-text').textContent = 'This browser cannot draw from workers (OffscreenCanvas), which the gallery needs. Recent Chrome, Edge, Firefox and Safari can.';
     return;

@@ -9,8 +9,7 @@
   --lamp: 244 228 196;          /* the warm light over each case, as RGB */
   --night: var(--plinth);       /* the dimmed hours on the day slider stay dark on both papers */
   --day: color-mix(in srgb, var(--ink) 22%, var(--paper));
-  --hand: "Gaegu", cursive;
-  --body: "Klee One", "LXGW WenKai", serif;
+  /* --hand and --body (Gaegu / Klee One with their Chinese partners) come from the kit */
   --mh: 128px;                  /* where the masthead ends on screen, kept current by gallery.js */
 }
 
